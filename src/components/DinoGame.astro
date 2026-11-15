@@ -3,7 +3,7 @@
     <button class="runner-pause" type="button" data-pause aria-label="Pause game" hidden>
       <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true"><path d="M2 2h3v12H2zM9 2h3v12H9z" /></svg>
     </button>
-    <span class="runner-score" data-score aria-label="Current score">00000</span>
+    <button class="runner-score" type="button" data-score aria-label="Current score: 0. Show best score." aria-pressed="false" title="Show best score">00000</button>
   </div>
   <div class="runner-field">
     <canvas class="runner-canvas" width="1040" height="155" tabindex="0" aria-label="Dinosaur runner. Press Space or Up Arrow, or tap, to start and jump over cacti."></canvas>
@@ -21,7 +21,7 @@
     const ctx = canvas.getContext('2d');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
     const restartButton = root.querySelector<HTMLButtonElement>('[data-restart]')!;
-    const scoreElement = root.querySelector<HTMLElement>('[data-score]')!;
+    const scoreElement = root.querySelector<HTMLButtonElement>('[data-score]')!;
     const status = root.querySelector<HTMLElement>('[data-status]')!;
     if (ctx) {
       type Obstacle = { x: number; width: number; height: number };
@@ -34,11 +34,25 @@
       let velocity = 0;
       let distance = 0;
       let score = 0;
+      let best = 0;
+      let showingBest = false;
       let obstacles: Obstacle[] = [];
       let nextObstacle = 1.5;
       let previousTime = 0;
       let frame = 0;
       const formatted = (n: number) => Math.min(Math.max(0, Math.floor(n)), 99999).toString().padStart(5, '0');
+      try {
+        const savedBest = Number(localStorage.getItem('kochi-labs-dino-best'));
+        if (Number.isFinite(savedBest) && savedBest > 0) best = Math.floor(savedBest);
+      } catch { /* The game remains playable when storage is unavailable. */ }
+
+      function updateScore() {
+        const value = showingBest ? best : score;
+        scoreElement.textContent = formatted(value);
+        scoreElement.setAttribute('aria-pressed', String(showingBest));
+        scoreElement.setAttribute('aria-label', `${showingBest ? 'Best' : 'Current'} score: ${value}. Show ${showingBest ? 'current' : 'best'} score.`);
+        scoreElement.title = `Show ${showingBest ? 'current' : 'best'} score`;
+      }
 
       const dinosaur = [
         '          XXXXXXXX  ',
@@ -185,6 +199,11 @@
 
       function finish() {
         mode = 'over';
+        if (score > best) {
+          best = score;
+          try { localStorage.setItem('kochi-labs-dino-best', String(best)); } catch { /* Saving a best score is optional. */ }
+        }
+        updateScore();
         status.textContent = `Game over. ${score} points. Press Space or tap to restart.`;
         pauseButton.hidden = true;
         restartButton.hidden = false;
@@ -196,8 +215,11 @@
         previousTime = now;
         const speed = Math.min(300 + distance / 160, 490);
         distance += speed * dt;
-        score = Math.floor(distance / 10);
-        scoreElement.textContent = formatted(score);
+        const nextScore = Math.floor(distance / 10);
+        if (nextScore !== score) {
+          score = nextScore;
+          updateScore();
+        }
         if (jumpHeight > 0 || velocity > 0) {
           jumpHeight = Math.max(0, jumpHeight + velocity * dt);
           velocity -= 1520 * dt;
@@ -228,8 +250,9 @@
           score = 0;
           obstacles = [];
           nextObstacle = .8;
-          scoreElement.textContent = '00000';
         }
+        showingBest = false;
+        updateScore();
         mode = 'running';
         status.textContent = '';
         pauseButton.hidden = false;
@@ -254,6 +277,10 @@
       }
 
       restartButton.addEventListener('click', start);
+      scoreElement.addEventListener('click', () => {
+        showingBest = !showingBest;
+        updateScore();
+      });
       pauseButton.addEventListener('click', () => { pause(); canvas.focus({ preventScroll: true }); });
       canvas.addEventListener('pointerdown', (event) => {
         if (event.button !== 0) return;
@@ -288,13 +315,13 @@
 <style>
   .runner { width: 100%; max-width: 1040px; margin-inline: auto; color: #000000; }
   .runner-heading { height: 36px; display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
-  .runner-score { font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 3px; }
+  .runner-score { padding: 0; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: inherit; cursor: pointer; font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 3px; }
   .runner-field { position: relative; }
   .runner-canvas { display: block; width: 100%; height: 155px; touch-action: manipulation; border: 0; outline: none; box-shadow: none; }
   .runner-canvas:focus, .runner-canvas:focus-visible { outline: none; border: 0; box-shadow: none; }
   [hidden] { display: none !important; }
   .runner-pause, .runner-restart { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border: 0; border-radius: 0; background: transparent; color: #000000; cursor: pointer; outline: none; }
   .runner-restart { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); }
-  .runner-pause:hover, .runner-restart:hover { opacity: .7; }
-  .runner-pause:focus-visible, .runner-restart:focus-visible { filter: drop-shadow(0 0 7px #000000); }
+  .runner-pause:hover, .runner-restart:hover, .runner-score:hover { opacity: .7; }
+  .runner-pause:focus-visible, .runner-restart:focus-visible, .runner-score:focus-visible { outline: none; filter: drop-shadow(0 0 7px #000000); }
 </style>

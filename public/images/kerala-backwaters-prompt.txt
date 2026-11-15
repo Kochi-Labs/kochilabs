@@ -1,0 +1,7 @@
+Generated with the built-in ImageGen tool.
+
+Use case: stylized-concept.
+Asset type: full-bleed website background, wide landscape 16:10 composition.
+Create an original, beautiful hand-painted anime background of Kerala's peaceful backwaters. Lush coconut palms frame a broad calm waterway, a small traditional Kerala kettuvallam houseboat sits in the middle distance, low tiled-roof homes and tropical greenery on distant banks, soft hazy green hills. Delicate clean linework, layered watercolor and gouache textures, cinematic animated-film environment art, warm peaceful afternoon light. Pale powder-blue sky with soft cream clouds, rich natural greens, softly reflective blue-green water. Sophisticated atmospheric detail, not a flat vector cartoon.
+Layout constraint: the upper middle 45% should be spacious, mostly pale luminous sky, calm enough for one black handwritten headline. Detailed palms and banks mostly toward the sides and the lower horizon. Bottom 20% should be uncluttered pale water reflections, leaving space for a black pixel-art runner game overlay. The central crop should still feel recognizably Kerala on mobile.
+No text, lettering, logos, UI, border, watermark, smoke, steam, or foreground characters. Do not draw the headline or game; they are added separately in code.
