@@ -10,6 +10,14 @@ const PHRASES = [
   ['D4', 'F4', null, 'G4', 'F4', null, 'D4', null],
 ] as const;
 type Bed = 'water' | 'birds' | 'crickets' | 'rain' | 'fire';
+// Listener faces -Z. Broad stereo fields keep their two recorded channels.
+const BED_SPACE: Record<Bed, { width: number; height: number; depth: number }> = {
+  water: { width: 1.6, height: -.55, depth: -1.3 },
+  birds: { width: 2.1, height: 1.2, depth: -2.2 },
+  crickets: { width: 2.4, height: -.2, depth: .8 },
+  rain: { width: 1.8, height: 2.4, depth: -.6 },
+  fire: { width: .65, height: .3, depth: -2.8 },
+};
 const BED_FILES: Record<Bed, string> = {
   water: 'ambience-water', birds: 'ambience-birds', crickets: 'ambience-crickets',
   rain: 'foley-rain', fire: 'foley-fire',
@@ -41,6 +49,13 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   const report = (value: SoundState) => { state = value; onState?.(value); };
   const keep = <T extends AudioNode>(node: T): T => { nodes.add(node); return node; };
   function remember() { try { localStorage.setItem(PREFERENCE, String(muted)); } catch { /* Optional preference. */ } }
+  function spatialPanner(x: number, y: number, z: number) {
+    const panner = context!.createPanner();
+    panner.panningModel = 'HRTF';
+    panner.distanceModel = 'inverse'; panner.refDistance = 1; panner.rolloffFactor = .12;
+    panner.positionX.value = x; panner.positionY.value = y; panner.positionZ.value = z;
+    return panner;
+  }
 
   function release() {
     for (const voice of [...voices]) {
@@ -56,9 +71,13 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     const offset = clamp(options.offset ?? 0, 0, Math.max(0, buffer.duration - .05));
     const duration = Math.min(options.duration ?? buffer.duration, buffer.duration - offset);
     const fade = Math.min(options.fade ?? .025, duration / 3);
-    const source = context.createBufferSource(), gain = context.createGain(), panner = context.createStereoPanner();
+    const source = context.createBufferSource(), gain = context.createGain();
+    // Ambient channels are spatialized once on their shared bus, so crossfades
+    // never jump between positions. Local interactions follow their screen X.
+    const spatial = !options.ambience;
+    const height = file.includes('birds') || file.includes('leaves') ? .9 : file.includes('splash') || file.includes('step') ? -.5 : 0;
+    const panner = spatial ? spatialPanner(clamp(pan, -.8, .8) * 2.2, height, file.startsWith('handpan/') ? -1.6 : -1.1) : context.createStereoPanner();
     source.buffer = buffer; // Original pitch preserves a real handpan's resonant overtones.
-    panner.pan.value = clamp(pan, -.8, .8);
     source.connect(gain); gain.connect(panner); panner.connect(destination);
     gain.gain.setValueAtTime(0, at);
     if (options.fade) {
@@ -68,7 +87,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       gain.gain.setValueAtTime(strength, at + duration - fade);
       gain.gain.setValueCurveAtTime(Float32Array.from(curve).reverse(), at + duration - fade, fade);
     } else {
-      gain.gain.linearRampToValueAtTime(strength, at + .006);
+      gain.gain.linearRampToValueAtTime(strength, at + Math.min(file.startsWith('handpan/') ? .022 : .012, duration / 4));
       gain.gain.setValueAtTime(strength, at + duration - fade);
       gain.gain.linearRampToValueAtTime(0, at + duration);
     }
@@ -84,10 +103,11 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   function mixBeds() {
     if (!context) return;
     const levels: Record<Bed, number> = {
-      water: .22, birds: night ? 0 : .26 * (1 - rain * .6), crickets: night ? .18 * (1 - rain * .5) : 0,
+      water: .42, birds: night ? 0 : .50 * (1 - rain * .45), crickets: night ? .26 * (1 - rain * .4) : 0,
       rain: rain * .27, fire: fire * .2,
     };
-    beds.forEach((bed, name) => bed.gain.gain.setTargetAtTime(levels[name], context!.currentTime, .9));
+    // About six seconds to settle: no abrupt wildlife or weather switch.
+    beds.forEach((bed, name) => bed.gain.gain.setTargetAtTime(levels[name], context!.currentTime, 2));
   }
   function handpan(note: string, at: number, strength: number, pan: number) {
     lastTake = lastTake === 1 ? 2 : 1;
@@ -101,7 +121,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       if (!buffer) return;
       if (bed.next < now) bed.next = now + .05;
       if (bed.next < now + .3) {
-        const overlap = Math.min(3, buffer.duration / 5);
+        const overlap = Math.min(5, buffer.duration / 5);
         if (sample(file, bed.next, 1, name === 'birds' ? -.18 : name === 'crickets' ? .18 : 0, bed.gain, { fade: overlap, ambience: true })) {
           bed.next += buffer.duration - overlap;
         }
@@ -130,10 +150,21 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     limiter.threshold.value = -15; limiter.knee.value = 18; limiter.ratio.value = 3;
     limiter.attack.value = .015; limiter.release.value = .35;
     master.connect(limiter); limiter.connect(context.destination);
-    music = keep(context.createGain()); music.gain.value = .58; music.connect(master);
-    effects = keep(context.createGain()); effects.gain.value = .68; effects.connect(master);
+    music = keep(context.createGain()); music.gain.value = .40;
+    const warmth = keep(context.createBiquadFilter()); warmth.type = 'lowpass'; warmth.frequency.value = 3400; warmth.Q.value = .35;
+    music.connect(warmth); warmth.connect(master);
+    effects = keep(context.createGain()); effects.gain.value = .60; effects.connect(master);
     for (const name of Object.keys(BED_FILES) as Bed[]) {
-      const gain = keep(context.createGain()); gain.gain.value = 0; gain.connect(master);
+      const gain = keep(context.createGain()); gain.gain.value = 0;
+      const split = keep(context.createChannelSplitter(2));
+      const field = BED_SPACE[name];
+      // Separate, stable emitters preserve the original stereo field and add
+      // binaural elevation/depth without spinning or modulating the recordings.
+      const left = keep(spatialPanner(-field.width, field.height, field.depth));
+      const right = keep(spatialPanner(field.width, field.height, field.depth));
+      const blend = keep(context.createGain()); blend.gain.value = .88;
+      gain.connect(split); split.connect(left, 0); split.connect(right, 1);
+      left.connect(blend); right.connect(blend); blend.connect(master);
       beds.set(name, { gain, next: 0 });
     }
     mixBeds();
@@ -162,7 +193,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
         if (!buffers.size) { report('unavailable'); return; }
         if (context!.state !== 'running') { report('waiting'); return; }
         master.gain.cancelScheduledValues(context!.currentTime);
-        master.gain.setTargetAtTime(.68, context!.currentTime, .35);
+        master.gain.setTargetAtTime(.68, context!.currentTime, .7);
         report('playing'); mixBeds();
         for (const item of pending.splice(0)) if (performance.now() - item.at < 1200) controller.play(item.type, item.pan, item.intensity);
         if (timer === undefined) { nextNote = context!.currentTime + .5; schedule(); timer = setInterval(schedule, 100); }
@@ -175,8 +206,8 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     if (!context) return;
     if (suspendTimer !== undefined) clearTimeout(suspendTimer);
     master.gain.cancelScheduledValues(context.currentTime);
-    master.gain.setTargetAtTime(0, context.currentTime, immediate ? .015 : .06);
-    suspendTimer = setTimeout(() => { suspendTimer = undefined; release(); void context?.suspend().catch(() => {}); }, immediate ? 70 : 300);
+    master.gain.setTargetAtTime(0, context.currentTime, immediate ? .015 : .1);
+    suspendTimer = setTimeout(() => { suspendTimer = undefined; release(); void context?.suspend().catch(() => {}); }, immediate ? 70 : 500);
   }
   function visibility() { if (!destroyed && document.hidden) hush(muted ? 'muted' : 'waiting', true); }
   document.addEventListener('visibilitychange', visibility);
@@ -206,8 +237,9 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       if (type === 'paperClose') { options.duration = .68; strength *= .7; }
       if (type === 'jump' || type === 'land') strength *= .48;
       if (type === 'water') strength *= .65;
-      if (type === 'celestial' || type === 'gameStart') strength *= .65;
-      sample(EFFECT_FILES[type], now, strength, pan, effects, options);
+      const musical = type === 'celestial' || type === 'gameStart';
+      if (musical) strength *= .65;
+      sample(EFFECT_FILES[type], now, strength, pan, musical ? music : effects, options);
       if (type === 'boat') sample('ambience-water', now + .08, .3 * volume, pan, effects, { offset: 4, duration: 1.6, fade: .35 });
     },
     setRain(value: number) { rain = clamp(value); mixBeds(); },
