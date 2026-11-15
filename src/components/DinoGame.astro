@@ -187,7 +187,9 @@
 
       function resize() {
         const oldWidth = width;
-        width = Math.max(1, canvas.getBoundingClientRect().width);
+        const bounds = canvas.getBoundingClientRect();
+        // Preserve sprite proportions when the landscape layout uses a shorter canvas.
+        width = Math.max(1, bounds.width * height / Math.max(1, bounds.height || height));
         const ratio = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = Math.round(width * ratio);
         canvas.height = height * ratio;

@@ -33,6 +33,9 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 
 ## Scene interactions
 
+- Brush the painted palms and shoreline trees to bend their foliage toward your pointer. Shake a palm sideways to drop a coconut; tapping a palm also gives it a shake. The coconut falls under gravity, scales with its distance from the viewer, splashes into the water, and floats with the wave surface.
+- Click any of the twelve village houses to swing its window shutters open and switch on warm interior lights. Click again to close them. Each house keeps its own state through day/night changes. A tiny villager emerges and walks toward the shore when a house opens, and returns when it closes. Keyboard users can Tab to the individual house controls and the palm-shake control; these controls become visible on focus.
+
 - In daylight, the sun casts a warm disc and shimmering light path onto the water. Click-generated waves distort both the sun and moon reflections; switching day/night smoothly blends between them.
 
 - At night, fireflies drift and glow near the banks. The crescent moon and its broken light path reflect on the water through the same wave displacement used by water clicks. Reduced motion stops firefly drifting and pulsing.
@@ -47,6 +50,6 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 - Focus the scene and press Enter to make a splash. Space still starts the dinosaur game.
 - The score toggles between the current run and your saved best score.
 
-`src/lib/kerala-scene.ts` owns the Three.js renderer and interactions. `src/lib/scene-models.ts` contains the illustrated geometry. `src/lib/water-physics.ts` contains travelling-wave sampling and damped spring integration. This is a lightweight wave and buoyancy simulation, not a full fluid solver. Fixed timesteps, capped pixel ratio, bounded effects, background-tab pausing, and resource cleanup keep the scene manageable. Reduced-motion preferences stop ambient water and train motion and soften direct interactions. A static image remains available if WebGL cannot start.
+`src/lib/kerala-scene.ts` owns the Three.js renderer and interactions. `src/lib/scene-models.ts` contains the illustrated geometry. `src/lib/water-physics.ts` contains travelling-wave sampling and damped spring integration. `src/lib/living-foliage.ts` animates the painted foliage with localized shader deformation, spring responses, and coconut motion; `src/lib/village-houses.ts` aligns hinged window overlays with the original buildings. `src/lib/river-surface.ts` renders a separate tessellated, lit river surface bounded by the shoreline. Waves use a depth-dependent perspective transform, with smaller ripples and lower projected height farther away. This is a lightweight wave and buoyancy simulation, not a full fluid solver. Fixed timesteps, capped pixel ratio, bounded effects, background-tab pausing, and resource cleanup keep the scene manageable. Reduced-motion preferences stop ambient water and train motion and soften direct interactions. A static image remains available if WebGL cannot start.
 
 The background and its boat-free edit were created with built-in ImageGen. The image assets and exact generation prompts are stored in `public/images/`. The original painting is preserved; `kerala-backwaters-clean.png` is the background plate for the animated scene.

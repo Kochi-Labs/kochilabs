@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { createRiverSurface, riverContains } from './river-surface';
+import { createVillageHouses } from './village-houses';
+import { createLivingFoliage, foliageShaderUniforms, foliageShaderFunction } from './living-foliage';
 import { createHouseboat, createMetro, createViaduct, createLotus } from './scene-models';
 import { MAX_WAVES, WAVE_LIFETIME, sampleWaterHeight, springStep, type WaterImpulse } from './water-physics';
 
@@ -9,9 +12,12 @@ export type KeralaSceneController = {
   releaseBirds(): void;
   setScroll(progress: number): void;
   setNight(enabled: boolean): void;
+  houseLabels: readonly string[];
+  toggleHouse(index: number): boolean;
+  shakePalm(): void;
 };
 
-type SceneOptions = { backgroundUrl: string; moonElement?: HTMLElement; onReady?: (supported: boolean) => void };
+type SceneOptions = { backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean) => void; onCoconutSplash?: () => void; onReady?: (supported: boolean) => void };
 type Lotus = { group: THREE.Group; x: number; y: number; born: number; phase: number };
 type Bird = { group: THREE.Group; left: THREE.Mesh; right: THREE.Mesh; born: number; origin: THREE.Vector3; direction: number; phase: number };
 
@@ -25,72 +31,22 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * world;
 }`;
 
-const waterFragment = `
+const backgroundFragment = `
 uniform sampler2D uBackdrop;
-uniform float uTime;
-uniform float uAmbient;
 uniform float uNight;
-uniform vec2 uMoon;
-uniform float uScroll;
-uniform vec4 uWaves[10];
 varying vec2 vUv;
-varying vec2 vWorld;
+${foliageShaderUniforms}
+${foliageShaderFunction}
 void main() {
-  float water = 1.0 - smoothstep(-175.0, -135.0, vWorld.y);
-  vec2 displacement = vec2(sin(vWorld.y * .095 + uTime * 1.3), cos(vWorld.x * .045 + uTime * .8)) * .00035 * uAmbient;
-  float highlight = 0.0;
-  for (int i = 0; i < 10; i++) {
-    vec4 wave = uWaves[i];
-    float age = uTime - wave.z;
-    if (wave.w > 0.0 && age >= 0.0 && age < 5.0) {
-      vec2 delta = (vWorld - wave.xy) * vec2(.64, 1.45);
-      float radius = length(delta);
-      float front = radius - age * 145.0;
-      float envelope = exp(-(front * front) / 3600.0) * exp(-age * .7);
-      float height = sin(front * .08) * envelope * wave.w;
-      vec2 direction = delta / max(radius, 1.0);
-      displacement += direction * height * vec2(.00042, .0008);
-      highlight += cos(front * .08) * envelope * wave.w * .007;
-    }
-  }
-  vec3 color = texture2D(uBackdrop, clamp(vUv + displacement * water, vec2(.002), vec2(.998))).rgb;
-  color += vec3(.76, .89, .72) * max(highlight, 0.0) * water;
-  color -= vec3(.12, .23, .18) * max(-highlight, 0.0) * water;
+  vec3 color = texture2D(uBackdrop, swayFoliage(vUv)).rgb;
   vec3 moonlit = color * vec3(.045, .075, .17) + vec3(.003, .006, .018);
-  color = mix(color, moonlit, uNight);
-  // Both reflections sample the water's displacement field. A click refracts
-  // the sun or crescent and breaks up its light path together.
-  vec2 reflected = vWorld + displacement * vec2(1720.0, 1075.0);
-  reflected.x += sin(reflected.y * .23 + uTime * .65 * uAmbient) * 2.2;
-  float moonY = -242.0 - uScroll * 16.0;
-  float radius = max(uMoon.y, 18.0);
-  vec2 crescentPoint = (reflected - vec2(uMoon.x, moonY)) / vec2(radius, radius * .62);
-  float disc = 1.0 - smoothstep(.93, 1.04, length(crescentPoint));
-  float cutout = smoothstep(.85, .94, length(crescentPoint - vec2(.516, -.516)));
-  float crescent = disc * cutout;
-  float depth = -reflected.y - 165.0;
-  float width = 12.0 + max(depth, 0.0) * .15;
-  float offset = reflected.x - uMoon.x;
-  float path = exp(-pow(offset / width, 2.0));
-  float taper = smoothstep(0.0, 40.0, depth) * (1.0 - smoothstep(180.0, 320.0, depth));
-  float bands = pow(.5 + .5 * sin(reflected.y * .29 + sin(reflected.y * .071) * 2.0 + uTime * .55 * uAmbient), 9.0);
-  float glimmer = crescent * (.25 + bands * .22) + path * taper * (.012 + bands * .07);
-  color += vec3(.95, .84, .55) * glimmer * water * uNight;
-  // The sun is 25/31 the moon's radius in the sky illustration. Its warm,
-  // full-disc reflection crossfades to the crescent when night falls.
-  vec2 sunPoint = crescentPoint * (31.0 / 25.0);
-  float sunDistance = length(sunPoint);
-  float sunDisc = 1.0 - smoothstep(.82, 1.12, sunDistance);
-  float sunHalo = exp(-sunDistance * sunDistance * .7) * .045;
-  float sunlight = sunDisc * (.32 + bands * .23) + sunHalo + path * taper * (.018 + bands * .12);
-  color += vec3(1.0, .63, .18) * sunlight * water * (1.0 - uNight);
-  gl_FragColor = vec4(color, 1.0);
+  gl_FragColor = vec4(mix(color, moonlit, uNight), 1.0);
   #include <colorspace_fragment>
 }`;
 
 /** A transparent WebGL layer; the caller's painted background remains the fallback. */
 export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptions): KeralaSceneController {
-  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setNight() {} };
+  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setNight() {}, houseLabels: [], toggleHouse() { return false; }, shakePalm() {} };
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
@@ -121,6 +77,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let scrollTarget = 0;
   let scroll = 0;
   let viewWidth = 1600;
+  let shortViewportOffset = 0;
   let trainBoost = 0;
   let boatX = 40;
   let boatTargetX = 40;
@@ -129,22 +86,40 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let boatVelocityY = 0;
   let boatRoll = 0;
   let boatRollVelocity = 0;
-  let pointer: { id: number; x: number; y: number; worldX: number; boatX: number; dragging: boolean; target: 'boat' | 'train' | 'water' | 'other' } | null = null;
+  let pointer: { id: number; x: number; y: number; worldX: number; boatX: number; dragging: boolean; target: 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null } | null = null;
   const oldCursor = canvas.style.cursor;
   const oldTouchAction = canvas.style.touchAction;
   canvas.style.touchAction = 'pan-y';
 
-  const waveVectors = Array.from({ length: MAX_WAVES }, () => new THREE.Vector4(0, 0, -100, 0));
+  const village = createVillageHouses();
+  const foliage = createLivingFoliage({
+    waterHeight(u, v) {
+      const point = backdropToWorld(u, v);
+      return sampleWaterHeight(point.x, point.y, time, waves, !reducedMotion, background.position.y) / 1.075;
+    },
+    onSplash(u, v) {
+      const point = backdropToWorld(u, v);
+      impulse(point.x, point.y, 17);
+      options.onCoconutSplash?.();
+    },
+  });
+  village.group.scale.setScalar(1.075);
+  village.group.position.z = -35;
+  foliage.group.scale.setScalar(1.075);
+  foliage.group.position.z = 0;
+
+  const river = createRiverSurface();
+  const celestialReflection = new THREE.Vector2(250, 31);
   const backgroundMaterial = new THREE.ShaderMaterial({
-    uniforms: { uBackdrop: { value: null }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector2(250, 31) }, uScroll: { value: 0 }, uTime: { value: 0 }, uAmbient: { value: reducedMotion ? 0 : 1 }, uWaves: { value: waveVectors } },
+    uniforms: { ...foliage.uniforms, uBackdrop: { value: null }, uNight: { value: 0 } },
     vertexShader: waterVertex,
-    fragmentShader: waterFragment,
+    fragmentShader: backgroundFragment,
     depthWrite: false,
   });
   const background = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1000), backgroundMaterial);
   background.position.z = -60;
   background.scale.setScalar(1.075);
-  scene.add(background);
+  scene.add(background, river.mesh);
 
   const viaduct = createViaduct();
   viaduct.position.set(0, -95, -20);
@@ -239,6 +214,23 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     }
   });
 
+  scene.add(village.group, foliage.group);
+
+  function toggleHouse(index: number) {
+    if (destroyed || index < 0 || index >= village.labels.length) return false;
+    const open = village.toggle(index);
+    options.onHouseChange?.(index, open);
+    return open;
+  }
+
+  function backdropToWorld(u: number, v: number) {
+    return new THREE.Vector2((u - .5) * 1720, (v - .5) * 1075 + background.position.y);
+  }
+
+  function backdropPoint(point: THREE.Vector3) {
+    return new THREE.Vector2(point.x / 1720 + .5, (point.y - background.position.y) / 1075 + .5);
+  }
+
   function disposeObject(object: THREE.Object3D) {
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
@@ -259,6 +251,9 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function impulse(x: number, y: number, strength = 14) {
+    const u = x / 1720 + .5;
+    const v = (y - background.position.y) / 1075 + .5;
+    if (!riverContains(u, v)) return;
     if (waves.length >= MAX_WAVES) waves.shift();
     waves.push({ x, y, born: time, strength: strength * (reducedMotion ? .45 : 1) });
   }
@@ -279,7 +274,9 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   function splashAt(clientX: number, clientY: number) {
     if (destroyed || !ready) return;
     const point = worldPoint(clientX, clientY);
-    if (!point || point.y > -145) return;
+    if (!point) return;
+    const uv = backdropPoint(point);
+    if (!riverContains(uv.x, uv.y)) return;
     impulse(point.x, point.y);
     addLotus(point.x, point.y);
   }
@@ -318,12 +315,19 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     }
   }
 
-  function pick(clientX: number, clientY: number): 'boat' | 'train' | 'water' | 'other' {
+  function pick(clientX: number, clientY: number): { target: 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null } {
     const point = worldPoint(clientX, clientY);
     scene.updateMatrixWorld();
-    if (raycaster.intersectObject(boat, true).length) return 'boat';
-    if (raycaster.intersectObject(train, true).length) return 'train';
-    return point && point.y < -145 ? 'water' : 'other';
+    if (raycaster.intersectObject(boat, true).length) return { target: 'boat', houseIndex: null };
+    if (raycaster.intersectObject(train, true).length) return { target: 'train', houseIndex: null };
+    if (point) {
+      const uv = backdropPoint(point);
+      const houseIndex = village.hitTest(uv.x, uv.y);
+      if (houseIndex !== null) return { target: 'house', houseIndex };
+      if (foliage.hitTest(uv.x, uv.y)) return { target: 'foliage', houseIndex: null };
+      if (riverContains(uv.x, uv.y)) return { target: 'water', houseIndex: null };
+    }
+    return { target: 'other', houseIndex: null };
   }
 
   function clampBoatX(x: number) {
@@ -333,9 +337,9 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   function onPointerDown(event: PointerEvent) {
     if (event.button !== 0 || !ready || pointer) return;
-    const target = pick(event.clientX, event.clientY);
+    const { target, houseIndex } = pick(event.clientX, event.clientY);
     const point = worldPoint(event.clientX, event.clientY);
-    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target };
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target, houseIndex };
     canvas.setPointerCapture(event.pointerId);
     if (target === 'boat') {
       canvas.style.cursor = 'grabbing';
@@ -344,12 +348,17 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   function onPointerMove(event: PointerEvent) {
     if (!ready) return;
+    const hoverPoint = worldPoint(event.clientX, event.clientY);
+    if (hoverPoint && pointer?.target !== 'boat') {
+      const uv = backdropPoint(hoverPoint);
+      foliage.move(uv.x, uv.y);
+    }
     if (pointer?.id === event.pointerId && pointer.target === 'boat') {
       const point = worldPoint(event.clientX, event.clientY);
       if (Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 5) pointer.dragging = true;
       if (point) boatTargetX = clampBoatX(pointer.boatX + point.x - pointer.worldX);
     } else if (!pointer) {
-      const target = pick(event.clientX, event.clientY);
+      const { target } = pick(event.clientX, event.clientY);
       canvas.style.cursor = target === 'boat' ? 'grab' : target === 'water' ? 'crosshair' : 'pointer';
     }
   }
@@ -368,6 +377,11 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       canvas.style.cursor = 'grab';
     } else if (current.target === 'water' && tap) splashAt(event.clientX, event.clientY);
     else if (current.target === 'train' && tap) trainBoost = 3.5;
+    else if (current.target === 'house' && tap && current.houseIndex !== null) toggleHouse(current.houseIndex);
+    else if (current.target === 'foliage' && tap) {
+      const point = worldPoint(event.clientX, event.clientY);
+      if (point) { const uv = backdropPoint(point); foliage.tap(uv.x, uv.y); }
+    }
     else if (current.target === 'other' && tap) releaseBirds();
   }
 
@@ -375,7 +389,10 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     if (pointer && canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);
     pointer = null;
     canvas.style.cursor = 'default';
+    foliage.leave();
   }
+
+  function onPointerLeave() { if (!pointer) foliage.leave(); }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -384,6 +401,10 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     const aspect = width / height;
     viewWidth = aspect >= 1.6 ? 1600 : 1000 * aspect;
     const viewHeight = aspect >= 1.6 ? 1600 / aspect : 1000;
+    // Keep the boat and shoreline above the compact runner on landscape phones.
+    shortViewportOffset = aspect > 1 && height <= 900
+      ? Math.max(0, 220 - (height / 2 - 171) * viewHeight / height)
+      : 0;
     camera.left = -viewWidth / 2;
     camera.right = viewWidth / 2;
     camera.top = viewHeight / 2;
@@ -396,7 +417,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     const moonBounds = options.moonElement?.getBoundingClientRect();
     const moonScreenX = moonBounds ? moonBounds.left + moonBounds.width / 2 : rect.left + width * .76;
     const moonRadius = moonBounds ? moonBounds.width * .31 : 24;
-    backgroundMaterial.uniforms.uMoon!.value.set(((moonScreenX - rect.left) / width - .5) * viewWidth, moonRadius / width * viewWidth);
+    celestialReflection.set(((moonScreenX - rect.left) / width - .5) * viewWidth, moonRadius / width * viewWidth);
     for (let i = 0; i < fireflyCount; i++) {
       fireflyPositions[i * 3] = (((i * .618034) % 1) - .5) * viewWidth * .94;
       fireflyPositions[i * 3 + 1] = -105 - ((i * 47) % 168);
@@ -411,9 +432,11 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     night += (nightTarget - night) * Math.min(1, dt * 4);
     if (reducedMotion) night = nightTarget;
     scroll += (scrollTarget - scroll) * Math.min(1, dt * 5);
+    village.update(dt, night, reducedMotion);
+    foliage.update(dt, time, night, reducedMotion);
     const waterY = -220 + scroll * 4;
-    const leftHeight = sampleWaterHeight(boatX - 76, waterY, time, waves, !reducedMotion);
-    const rightHeight = sampleWaterHeight(boatX + 76, waterY, time, waves, !reducedMotion);
+    const leftHeight = sampleWaterHeight(boatX - 76, waterY, time, waves, !reducedMotion, background.position.y);
+    const rightHeight = sampleWaterHeight(boatX + 76, waterY, time, waves, !reducedMotion, background.position.y);
     [boatX, boatVelocityX] = springStep(boatX, boatVelocityX, boatTargetX, 22, 8, dt);
     [boatY, boatVelocityY] = springStep(boatY, boatVelocityY, waterY + (leftHeight + rightHeight) / 2, 19, 5.7, dt);
     const angle = Math.atan2(rightHeight - leftHeight, 152) - THREE.MathUtils.clamp(boatVelocityX * .00012, -.025, .025);
@@ -426,9 +449,11 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function render() {
-    camera.position.y = -scroll * 42;
+    camera.position.y = -scroll * 42 - shortViewportOffset;
     camera.updateMatrixWorld();
     background.position.y = -scroll * 29;
+    village.group.position.y = background.position.y;
+    foliage.group.position.y = background.position.y;
     viaduct.position.y = -95 - scroll * 14;
     train.position.y = -94 - scroll * 14;
     boat.position.set(boatX, boatY, 10);
@@ -437,20 +462,14 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     reflection.rotation.z = -boatRoll * .6;
     reflection.scale.x = 1 + Math.sin(time * 1.1) * (reducedMotion ? 0 : .008);
     shadow.position.set(boatX, -224 + scroll * 4, 3);
-    backgroundMaterial.uniforms.uTime!.value = time;
     backgroundMaterial.uniforms.uNight!.value = night;
-    backgroundMaterial.uniforms.uScroll!.value = scroll;
+    river.update({ time, waves, night, ambient: !reducedMotion, scroll, moon: celestialReflection });
     fireflies.visible = night > .005;
     fireflies.position.y = -scroll * 12;
     fireflyMaterial.uniforms.uTime!.value = time;
     fireflyMaterial.uniforms.uNight!.value = night;
     fireflyMaterial.uniforms.uMotion!.value = reducedMotion ? 0 : 1;
     nightMaterials.forEach((colors, material) => material.color.lerpColors(colors.day, colors.night, night));
-    for (let i = 0; i < MAX_WAVES; i++) {
-      const wave = waves[i];
-      if (wave) waveVectors[i]!.set(wave.x, wave.y, wave.born, wave.strength);
-      else waveVectors[i]!.set(0, 0, -100, 0);
-    }
     for (let i = lotuses.length - 1; i >= 0; i--) {
       const lotus = lotuses[i]!;
       const age = time - lotus.born;
@@ -461,7 +480,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       const fade = 1 - THREE.MathUtils.smoothstep(age, 19, 24);
       lotus.group.scale.setScalar(grow * fade);
       lotus.group.position.x = lotus.x + (reducedMotion ? 0 : Math.sin(age * .3 + lotus.phase) * 5);
-      lotus.group.position.y = lotus.y + sampleWaterHeight(lotus.x, lotus.y, time, waves, !reducedMotion) * .4;
+      lotus.group.position.y = lotus.y + sampleWaterHeight(lotus.x, lotus.y, time, waves, !reducedMotion, background.position.y) * .4;
       lotus.group.rotation.z = reducedMotion ? 0 : Math.sin(time * .7 + lotus.phase) * .05;
     }
     for (let i = birds.length - 1; i >= 0; i--) {
@@ -498,7 +517,6 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
   function onMotionChange() {
     reducedMotion = media.matches;
-    backgroundMaterial.uniforms.uAmbient!.value = reducedMotion ? 0 : 1;
   }
   function onContextLost(event: Event) {
     event.preventDefault();
@@ -513,6 +531,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointercancel', onPointerCancel);
+  canvas.addEventListener('pointerleave', onPointerLeave);
   canvas.addEventListener('webglcontextlost', onContextLost);
   document.addEventListener('visibilitychange', onVisibility);
   media.addEventListener('change', onMotionChange);
@@ -524,6 +543,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     loaded.magFilter = THREE.LinearFilter;
     loaded.generateMipmaps = false;
     backgroundMaterial.uniforms.uBackdrop!.value = loaded;
+    river.setTexture(loaded);
     ready = true;
     render();
     options.onReady?.(true);
@@ -537,6 +557,11 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   return {
     splashAt,
+    houseLabels: village.labels,
+    toggleHouse,
+    shakePalm() {
+      foliage.shakeVisible(.5 - viewWidth / 3440, .5 + viewWidth / 3440);
+    },
     setNight(enabled) { nightTarget = enabled ? 1 : 0; },
     nudgeBoat,
     releaseBirds,
@@ -550,12 +575,17 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerCancel);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('webglcontextlost', onContextLost);
       document.removeEventListener('visibilitychange', onVisibility);
       media.removeEventListener('change', onMotionChange);
       if (pointer && canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);
       canvas.style.cursor = oldCursor;
       canvas.style.touchAction = oldTouchAction;
+      scene.remove(village.group, foliage.group, river.mesh);
+      river.destroy();
+      village.destroy();
+      foliage.destroy();
       disposeObject(scene);
       ownedTextures.forEach((owned) => owned.dispose());
       renderer.dispose();
