@@ -11,7 +11,7 @@ export type KeralaSceneController = {
   setNight(enabled: boolean): void;
 };
 
-type SceneOptions = { backgroundUrl: string; onReady?: (supported: boolean) => void };
+type SceneOptions = { backgroundUrl: string; moonElement?: HTMLElement; onReady?: (supported: boolean) => void };
 type Lotus = { group: THREE.Group; x: number; y: number; born: number; phase: number };
 type Bird = { group: THREE.Group; left: THREE.Mesh; right: THREE.Mesh; born: number; origin: THREE.Vector3; direction: number; phase: number };
 
@@ -30,6 +30,8 @@ uniform sampler2D uBackdrop;
 uniform float uTime;
 uniform float uAmbient;
 uniform float uNight;
+uniform vec2 uMoon;
+uniform float uScroll;
 uniform vec4 uWaves[10];
 varying vec2 vUv;
 varying vec2 vWorld;
@@ -56,6 +58,24 @@ void main() {
   color -= vec3(.12, .23, .18) * max(-highlight, 0.0) * water;
   vec3 moonlit = color * vec3(.045, .075, .17) + vec3(.003, .006, .018);
   color = mix(color, moonlit, uNight);
+  // Sample moonlight through exactly the same displacement field as the water.
+  // A click therefore refracts the crescent and breaks up its light path together.
+  vec2 reflected = vWorld + displacement * vec2(1720.0, 1075.0);
+  reflected.x += sin(reflected.y * .23 + uTime * .65 * uAmbient) * 2.2;
+  float moonY = -242.0 - uScroll * 16.0;
+  float radius = max(uMoon.y, 18.0);
+  vec2 crescentPoint = (reflected - vec2(uMoon.x, moonY)) / vec2(radius, radius * .62);
+  float disc = 1.0 - smoothstep(.93, 1.04, length(crescentPoint));
+  float cutout = smoothstep(.85, .94, length(crescentPoint - vec2(.516, -.516)));
+  float crescent = disc * cutout;
+  float depth = -reflected.y - 165.0;
+  float width = 12.0 + max(depth, 0.0) * .15;
+  float offset = reflected.x - uMoon.x;
+  float path = exp(-pow(offset / width, 2.0));
+  float taper = smoothstep(0.0, 40.0, depth) * (1.0 - smoothstep(180.0, 320.0, depth));
+  float bands = pow(.5 + .5 * sin(reflected.y * .29 + sin(reflected.y * .071) * 2.0 + uTime * .55 * uAmbient), 9.0);
+  float glimmer = crescent * (.25 + bands * .22) + path * taper * (.012 + bands * .07);
+  color += vec3(.95, .84, .55) * glimmer * water * uNight;
   gl_FragColor = vec4(color, 1.0);
   #include <colorspace_fragment>
 }`;
@@ -108,7 +128,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   const waveVectors = Array.from({ length: MAX_WAVES }, () => new THREE.Vector4(0, 0, -100, 0));
   const backgroundMaterial = new THREE.ShaderMaterial({
-    uniforms: { uBackdrop: { value: null }, uNight: { value: 0 }, uTime: { value: 0 }, uAmbient: { value: reducedMotion ? 0 : 1 }, uWaves: { value: waveVectors } },
+    uniforms: { uBackdrop: { value: null }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector2(250, 31) }, uScroll: { value: 0 }, uTime: { value: 0 }, uAmbient: { value: reducedMotion ? 0 : 1 }, uWaves: { value: waveVectors } },
     vertexShader: waterVertex,
     fragmentShader: waterFragment,
     depthWrite: false,
@@ -156,6 +176,47 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   const birds: Bird[] = [];
   const ownedTextures = new Set<THREE.Texture>();
 
+  // A single draw call for a sparse, softly pulsing swarm along the banks.
+  const fireflyCount = 36;
+  const fireflyPositions = new Float32Array(fireflyCount * 3);
+  const fireflyPhases = new Float32Array(fireflyCount);
+  const fireflyGeometry = new THREE.BufferGeometry();
+  for (let i = 0; i < fireflyCount; i++) fireflyPhases[i] = i * 2.39996;
+  fireflyGeometry.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
+  fireflyGeometry.setAttribute('phase', new THREE.BufferAttribute(fireflyPhases, 1));
+  const fireflyMaterial = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMotion: { value: reducedMotion ? 0 : 1 }, uDpr: { value: renderer.getPixelRatio() } },
+    vertexShader: `
+      attribute float phase;
+      uniform float uTime;
+      uniform float uMotion;
+      uniform float uDpr;
+      varying float vGlow;
+      void main() {
+        float t = uTime * uMotion;
+        vec3 p = position;
+        p.x += (sin(t * .34 + phase) * 11.0 + sin(t * .17 + phase * 2.0) * 4.0) * uMotion;
+        p.y += sin(t * .47 + phase * 1.7) * 9.0 * uMotion;
+        vGlow = .24 + .76 * pow(.5 + .5 * sin(t * .9 + phase), 2.0);
+        gl_PointSize = (9.0 + 4.0 * vGlow) * uDpr;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float uNight;
+      varying float vGlow;
+      void main() {
+        float d = length(gl_PointCoord - .5) * 2.0;
+        float halo = exp(-d * d * 5.5) * .24;
+        float core = (1.0 - smoothstep(.08, .25, d)) * .85;
+        float alpha = (halo + core) * vGlow * uNight;
+        gl_FragColor = vec4(1.0, .89, .38, alpha);
+      }`,
+  });
+  const fireflies = new THREE.Points(fireflyGeometry, fireflyMaterial);
+  fireflies.frustumCulled = false;
+  scene.add(fireflies);
+
   // Store original colors once so repeated day/night switches are reversible.
   const nightMaterials = new Map<THREE.MeshBasicMaterial, { day: THREE.Color; night: THREE.Color }>();
   const moonTint = new THREE.Color('#758bc4').multiplyScalar(.55);
@@ -174,7 +235,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
     object.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
+      if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Points)) return;
       geometries.add(child.geometry);
       (Array.isArray(child.material) ? child.material : [child.material]).forEach((material) => materials.add(material));
     });
@@ -324,6 +385,17 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.7));
     renderer.setSize(width, height, false);
     boatTargetX = clampBoatX(boatTargetX);
+    const moonBounds = options.moonElement?.getBoundingClientRect();
+    const moonScreenX = moonBounds ? moonBounds.left + moonBounds.width / 2 : rect.left + width * .76;
+    const moonRadius = moonBounds ? moonBounds.width * .31 : 24;
+    backgroundMaterial.uniforms.uMoon!.value.set(((moonScreenX - rect.left) / width - .5) * viewWidth, moonRadius / width * viewWidth);
+    for (let i = 0; i < fireflyCount; i++) {
+      fireflyPositions[i * 3] = (((i * .618034) % 1) - .5) * viewWidth * .94;
+      fireflyPositions[i * 3 + 1] = -105 - ((i * 47) % 168);
+      fireflyPositions[i * 3 + 2] = 24;
+    }
+    fireflyGeometry.attributes.position!.needsUpdate = true;
+    fireflyMaterial.uniforms.uDpr!.value = renderer.getPixelRatio();
   }
 
   function simulate(dt: number) {
@@ -359,6 +431,12 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     shadow.position.set(boatX, -224 + scroll * 4, 3);
     backgroundMaterial.uniforms.uTime!.value = time;
     backgroundMaterial.uniforms.uNight!.value = night;
+    backgroundMaterial.uniforms.uScroll!.value = scroll;
+    fireflies.visible = night > .005;
+    fireflies.position.y = -scroll * 12;
+    fireflyMaterial.uniforms.uTime!.value = time;
+    fireflyMaterial.uniforms.uNight!.value = night;
+    fireflyMaterial.uniforms.uMotion!.value = reducedMotion ? 0 : 1;
     nightMaterials.forEach((colors, material) => material.color.lerpColors(colors.day, colors.night, night));
     for (let i = 0; i < MAX_WAVES; i++) {
       const wave = waves[i];

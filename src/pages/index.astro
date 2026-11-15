@@ -25,13 +25,12 @@ import DinoGame from '../components/DinoGame.astro';
     </svg>
     <button class="celestial" type="button" aria-label="Sun. Double-click to change to night. Enter or Space also works." aria-pressed="false" title="Double-click for night">
       <svg class="sun" viewBox="0 0 100 100" aria-hidden="true">
-        <circle class="sun-halo" cx="50" cy="50" r="44" fill="#ffeaa0" opacity=".2" />
-        <g stroke="#e6ad4c" stroke-width="1.3" stroke-linecap="round" opacity=".75">
-          {[...Array(12)].map((_, i) => <path d="M50 7 L50 13" transform={`rotate(${i * 30} 50 50)`} />)}
-        </g>
-        <circle cx="50" cy="50" r="29" fill="#ffe3a0" />
-        <circle cx="48" cy="47" r="24" fill="#fff0bb" opacity=".7" />
-        <path d="M32 65 Q47 76 66 62" fill="none" stroke="#e9ba65" stroke-width="1.3" opacity=".6" />
+        <defs>
+          <radialGradient id="sun-atmosphere"><stop stop-color="#fff6c8" stop-opacity=".72" /><stop offset=".55" stop-color="#ffe6a1" stop-opacity=".25" /><stop offset="1" stop-color="#ffcf7c" stop-opacity="0" /></radialGradient>
+          <radialGradient id="sun-surface" cx="42%" cy="38%" r="68%"><stop stop-color="#fffff0" /><stop offset=".55" stop-color="#fff8d1" /><stop offset=".85" stop-color="#ffe5a0" /><stop offset="1" stop-color="#f6cb7e" /></radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="49" fill="url(#sun-atmosphere)" />
+        <circle cx="50" cy="50" r="25" fill="url(#sun-surface)" />
       </svg>
       <svg class="moon" viewBox="0 0 100 100" aria-hidden="true">
         <defs><mask id="moon-cutout"><rect width="100" height="100" fill="white" /><circle cx="66" cy="34" r="28" fill="black" /></mask></defs>
@@ -58,6 +57,7 @@ import DinoGame from '../components/DinoGame.astro';
   const headline = document.querySelector<HTMLButtonElement>('.headline-trigger')!;
   const scene = createKeralaScene(canvas, {
     backgroundUrl: '/images/kerala-backwaters-clean.png',
+    moonElement: document.querySelector<HTMLButtonElement>('.celestial')!,
     onReady(supported) {
       document.body.dataset.scene = supported ? 'ready' : 'fallback';
     },
@@ -130,9 +130,9 @@ import DinoGame from '../components/DinoGame.astro';
   .stars { position: fixed; inset: 0 0 auto; width: 100%; height: 51svh; z-index: 0; pointer-events: none; fill: #fff1cc; opacity: 0; transition: opacity 1.1s ease; }
   .celestial { position: fixed; top: 10svh; right: 18%; z-index: 2; width: clamp(76px, 8vw, 112px); aspect-ratio: 1; border: 0; padding: 0; border-radius: 50%; background: transparent; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
   .celestial svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .7s ease, transform .7s ease; pointer-events: none; }
-  .celestial .sun { filter: drop-shadow(0 0 12px #ffd47b66); }
+  .celestial .sun { filter: drop-shadow(0 0 18px #ffe6a15c); }
   .celestial .moon { opacity: 0; transform: rotate(-35deg) scale(.65); filter: drop-shadow(0 0 14px #ebf2cf66); }
-  .celestial:hover .sun-halo { opacity: .45; }
+  .celestial:hover .sun { filter: drop-shadow(0 0 22px #ffe6a180); }
   .celestial:focus-visible { outline: 1px dashed currentColor; outline-offset: 3px; }
   :global(body[data-time="night"]) { color: #f6efd9; background: #101e38; }
   :global(body[data-time="night"]) .landscape img { filter: brightness(.25) sepia(.6) hue-rotate(165deg) saturate(1.3); }
