@@ -95,9 +95,10 @@ import DinoGame from '../components/DinoGame.astro';
   document.addEventListener('pointerdown', unlockSound, { capture: true, passive: true });
   document.addEventListener('keydown', unlockSound, { capture: true });
   soundButton.addEventListener('click', () => { void soundscape.toggle(); });
+  soundscape.autostart();
   const gameSound = (event: Event) => {
-    const type = (event as CustomEvent<{ type: SoundEffect }>).detail?.type;
-    if (['gameStart', 'jump', 'land', 'gameOver'].includes(type)) soundscape.play(type, -.25, .65);
+    const { type, pan = -.65 } = (event as CustomEvent<{ type: SoundEffect; pan?: number }>).detail ?? {};
+    if (['gameStart', 'jump', 'land', 'gameOver'].includes(type)) soundscape.play(type, pan, .65);
   };
   window.addEventListener('kochi:game-sound', gameSound);
   const canvas = document.querySelector<HTMLCanvasElement>('.kerala-scene')!;
@@ -133,8 +134,8 @@ import DinoGame from '../components/DinoGame.astro';
       soundscape.setFire(.65);
       document.querySelector('#village-status')!.textContent = 'The last metro carriage catches fire. Rain will arrive to extinguish it.';
     },
-    onCoconutSplash() {
-      soundscape.play('coconut', -.2, .9);
+    onCoconutSplash(pan) {
+      soundscape.play('coconut', pan, .9);
       document.querySelector('#village-status')!.textContent = 'A coconut splashes into the backwaters and floats.';
     },
     onReady(supported) {
@@ -161,6 +162,13 @@ import DinoGame from '../components/DinoGame.astro';
     villageControls.append(button);
   });
   if (scene.houseLabels.length) {
+    ['left', 'right'].forEach((side, index) => {
+      const net = document.createElement('button');
+      net.type = 'button'; net.className = 'scene-shortcut';
+      net.textContent = `Lift the ${side} Chinese fishing net`;
+      net.addEventListener('click', () => scene.liftFishingNet(index));
+      villageControls.append(net);
+    });
     const shake = document.createElement('button');
     shake.type = 'button';
     shake.className = 'scene-shortcut';

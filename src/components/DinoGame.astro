@@ -200,7 +200,10 @@
       }
 
       function gameSound(type: 'gameStart' | 'jump' | 'land' | 'gameOver') {
-        window.dispatchEvent(new CustomEvent('kochi:game-sound', { detail: { type } }));
+        const bounds = canvas.getBoundingClientRect();
+        const screenX = bounds.left + (dinosaurX + 16) / width * bounds.width;
+        const pan = Math.max(-1, Math.min(1, screenX / Math.max(window.innerWidth, 1) * 2 - 1));
+        window.dispatchEvent(new CustomEvent('kochi:game-sound', { detail: { type, pan } }));
       }
 
       function finish() {
@@ -277,7 +280,7 @@
       }
 
       function jump() {
-        if (mode !== 'running') { start(); return; }
+        if (mode !== 'running') start();
         if (jumpHeight === 0 && velocity === 0) {
           velocity = 510;
           gameSound('jump');

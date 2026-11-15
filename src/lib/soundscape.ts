@@ -2,7 +2,6 @@ export type SoundEffect = 'water' | 'boat' | 'palm' | 'window' | 'coconut' | 'co
 export type SoundState = 'waiting' | 'playing' | 'muted' | 'unavailable';
 export type SceneSoundMotion = { metroPan: number; metroMoving: boolean; boatPan: number; boatSpeed: number; boatDragging: boolean };
 
-const PREFERENCE = 'kochi-labs-sound-muted';
 const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
 const PHRASES = [
   ['D4', 'A4', null, 'G4', 'F4', null, 'D4', null],
@@ -37,6 +36,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   let state: SoundState = 'waiting', muted = false, destroyed = false, night = false;
   let rain = 0, fire = 0, beat = 0, phrase = 0, lastTake = 0, nextNote = 0;
   let activation: Promise<void> | undefined, loading: Promise<void> | undefined;
+  let activationVersion = 0, autoAttempted = false;
   let timer: ReturnType<typeof setInterval> | undefined;
   let suspendTimer: ReturnType<typeof setTimeout> | undefined;
   const buffers = new Map<string, AudioBuffer>();
@@ -49,10 +49,8 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   const lastEffect = new Map<SoundEffect, number>();
   const pending: { type: SoundEffect; pan: number; intensity: number; at: number }[] = [];
   const abort = new AbortController();
-  try { muted = localStorage.getItem(PREFERENCE) === 'true'; } catch { /* Optional preference. */ }
   const report = (value: SoundState) => { state = value; onState?.(value); };
   const keep = <T extends AudioNode>(node: T): T => { nodes.add(node); return node; };
-  function remember() { try { localStorage.setItem(PREFERENCE, String(muted)); } catch { /* Optional preference. */ } }
   function spatialPanner(x: number, y: number, z: number) {
     const panner = context!.createPanner();
     panner.panningModel = 'HRTF';
@@ -69,7 +67,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     beds.forEach(bed => { bed.next = 0; });
     movers.forEach(mover => { mover.next = 0; });
   }
-  function sample(file: string, at: number, strength: number, pan: number, destination: AudioNode, options: { offset?: number; duration?: number; fade?: number; ambience?: boolean } = {}) {
+  function sample(file: string, at: number, strength: number, pan: number, destination: AudioNode, options: { offset?: number; duration?: number; fade?: number; ambience?: boolean; attack?: number } = {}) {
     const buffer = buffers.get(file);
     // Reserve space for two overlapping voices per bed even during rapid clicks.
     if (!context || !buffer || destroyed || voices.size >= (options.ambience ? 32 : 16)) return false;
@@ -92,7 +90,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       gain.gain.setValueAtTime(strength, at + duration - fade);
       gain.gain.setValueCurveAtTime(Float32Array.from(curve).reverse(), at + duration - fade, fade);
     } else {
-      gain.gain.linearRampToValueAtTime(strength, at + Math.min(file.startsWith('handpan/') ? .022 : .012, duration / 4));
+      gain.gain.linearRampToValueAtTime(strength, at + Math.min(options.attack ?? (file.startsWith('handpan/') ? .022 : .012), duration / 4));
       gain.gain.setValueAtTime(strength, at + duration - fade);
       gain.gain.linearRampToValueAtTime(0, at + duration);
     }
@@ -108,7 +106,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   function mixBeds() {
     if (!context) return;
     const levels: Record<Bed, number> = {
-      water: .42, birds: night ? 0 : .50 * (1 - rain * .45), crickets: night ? .26 * (1 - rain * .4) : 0,
+      water: .42, birds: night ? 0 : .14 * (1 - rain * .45), crickets: night ? .26 * (1 - rain * .4) : 0,
       rain: rain * .27, fire: fire * .2,
     };
     // About six seconds to settle: no abrupt wildlife or weather switch.
@@ -130,8 +128,9 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     }
     if (boat) {
       boat.panner.positionX.setTargetAtTime(clamp(motion.boatPan, -1, 1) * 2.7, now, .055);
-      const movement = clamp(Math.abs(motion.boatSpeed) / 190);
-      const level = motion.boatDragging ? .12 + .7 * movement : .55 * movement;
+      const speed = Math.abs(motion.boatSpeed);
+      const movement = clamp(speed / 90);
+      const level = motion.boatDragging ? .12 + .7 * movement : speed > 3 ? .035 + .515 * movement : .55 * movement;
       boat.gain.gain.setTargetAtTime(level, now, .16);
     }
   }
@@ -145,10 +144,24 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     beds.forEach((bed, name) => {
       const file = BED_FILES[name], buffer = buffers.get(file);
       if (!buffer) return;
+      if (name === 'birds') {
+        // A brief distant call, then 18–34 seconds of quiet; never a chorus loop.
+        if (bed.next === 0) bed.next = now + 6 + Math.random() * 8;
+        if (night) { bed.next = Math.max(bed.next, now + 10); return; }
+        if (bed.next < now) bed.next = now + .05;
+        if (bed.next < now + .3) {
+          const duration = Math.min(2.4 + Math.random() * 1.2, buffer.duration);
+          const offset = Math.random() * Math.max(0, buffer.duration - duration);
+          if (sample(file, bed.next, .72, 0, bed.gain, { offset, duration, fade: .55, ambience: true })) {
+            bed.next += duration + 18 + Math.random() * 16;
+          }
+        }
+        return;
+      }
       if (bed.next < now) bed.next = now + .05;
       if (bed.next < now + .3) {
         const overlap = Math.min(5, buffer.duration / 5);
-        if (sample(file, bed.next, 1, name === 'birds' ? -.18 : name === 'crickets' ? .18 : 0, bed.gain, { fade: overlap, ambience: true })) {
+        if (sample(file, bed.next, 1, name === 'crickets' ? .18 : 0, bed.gain, { fade: overlap, ambience: true })) {
           bed.next += buffer.duration - overlap;
         }
       }
@@ -227,16 +240,24 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     })).then(() => {});
   }
   function stopScheduler() { if (timer !== undefined) clearInterval(timer); timer = undefined; }
-  async function start() {
+  async function start(fromGesture = false) {
     if (destroyed || document.hidden || muted) return;
-    if (activation) return activation;
-    activation = (async () => {
+    // A browser can leave an autoplay resume() promise pending indefinitely.
+    // A real gesture must issue a new resume() synchronously, never await that attempt.
+    if (activation && !fromGesture) return activation;
+    const version = ++activationVersion;
+    const attempt = (async () => {
       try {
         create();
         if (suspendTimer !== undefined) clearTimeout(suspendTimer); suspendTimer = undefined;
         await context!.resume();
+        if (destroyed || muted || document.hidden) {
+          if (!destroyed) void context?.suspend().catch(() => {});
+          return;
+        }
+        if (version !== activationVersion) return;
         await loading;
-        if (destroyed || muted || document.hidden) return;
+        if (destroyed || muted || document.hidden || version !== activationVersion) return;
         if (!buffers.size) { report('unavailable'); return; }
         if (context!.state !== 'running') { report('waiting'); return; }
         master.gain.cancelScheduledValues(context!.currentTime);
@@ -244,11 +265,15 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
         report('playing'); mixBeds(); moveSounds(true);
         for (const item of pending.splice(0)) if (performance.now() - item.at < 1200) controller.play(item.type, item.pan, item.intensity);
         if (timer === undefined) { nextNote = context!.currentTime + .5; schedule(); timer = setInterval(schedule, 100); }
-      } catch { report('unavailable'); }
+      } catch {
+        if (!destroyed && !muted && version === activationVersion) report(context ? 'waiting' : 'unavailable');
+      }
     })();
-    try { await activation; } finally { activation = undefined; }
+    activation = attempt;
+    try { await attempt; } finally { if (activation === attempt) activation = undefined; }
   }
   function hush(next: SoundState, immediate = false) {
+    ++activationVersion; activation = undefined;
     stopScheduler(); pending.length = 0; report(next);
     if (!context) return;
     if (suspendTimer !== undefined) clearTimeout(suspendTimer);
@@ -258,33 +283,42 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   }
   function visibility() { if (!destroyed && document.hidden) hush(muted ? 'muted' : 'waiting', true); }
   document.addEventListener('visibilitychange', visibility);
-  report(muted ? 'muted' : 'waiting');
+  // Sound starts enabled on every visit; mute applies only to this instance.
+  report('waiting');
   const controller = {
-    async unlock() { if (!muted && !destroyed && state !== 'playing') await start(); },
+    autostart() {
+      if (autoAttempted || destroyed || muted) return;
+      autoAttempted = true; void start();
+    },
+    async unlock() { if (!muted && !destroyed && state !== 'playing') await start(true); },
     async toggle() {
       if (destroyed) return;
-      if (state === 'playing' || activation) { muted = true; remember(); hush('muted'); }
-      else { muted = false; remember(); await start(); }
+      if (state === 'playing') { muted = true; hush('muted'); }
+      else { muted = false; await start(true); }
     },
     play(type: SoundEffect, pan = 0, intensity = 1) {
-      if (destroyed || document.hidden || muted) return;
+      if (destroyed || document.hidden || muted || type === 'gameStart') return;
       if (state !== 'playing') {
         if (activation && pending.length < 4) pending.push({ type, pan, intensity, at: performance.now() });
         return;
       }
       if (!context) return;
       const now = context.currentTime;
-      if (now - (lastEffect.get(type) ?? -10) < (type === 'water' ? .18 : .3)) return;
+      const cooldown = type === 'birds' ? 8 : type === 'jump' || type === 'land' ? .08 : type === 'water' ? .18 : .3;
+      if (now - (lastEffect.get(type) ?? -10) < cooldown) return;
       lastEffect.set(type, now);
       const volume = clamp(intensity, .15, 1.2);
-      const options: { offset?: number; duration?: number; fade?: number } = {};
+      const options: { offset?: number; duration?: number; fade?: number; attack?: number } = {};
       let strength = .72 * volume;
-      if (type === 'birds') { if (night) return; options.duration = 3; options.fade = .4; strength = .2 * volume; }
+      if (type === 'birds') { if (night) return; options.duration = 1.8; options.fade = .4; strength = .07 * volume; }
       if (type === 'language') { options.duration = .2; strength = .16 * volume; }
       if (type === 'paperClose') { options.duration = .68; strength *= .7; }
-      if (type === 'jump' || type === 'land') strength *= .48;
+      // Different dry portions of the CC0 sand-footstep recording: a fast
+      // takeoff brush, then a slightly deeper contact when the dino lands.
+      if (type === 'jump') { options.offset = .18; options.duration = .13; options.attack = .003; strength = .48 * volume; }
+      if (type === 'land') { options.offset = .22; options.duration = .20; options.attack = .004; strength = .58 * volume; }
       if (type === 'water') strength *= .65;
-      const musical = type === 'celestial' || type === 'gameStart';
+      const musical = type === 'celestial';
       if (musical) strength *= .65;
       sample(EFFECT_FILES[type], now, strength, pan, musical ? music : effects, options);
     },
@@ -299,7 +333,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     setNight(value: boolean) { night = value; mixBeds(); },
     destroy() {
       if (destroyed) return;
-      destroyed = true; abort.abort(); stopScheduler();
+      destroyed = true; ++activationVersion; activation = undefined; abort.abort(); stopScheduler();
       if (suspendTimer !== undefined) clearTimeout(suspendTimer);
       document.removeEventListener('visibilitychange', visibility);
       release(); nodes.forEach(node => node.disconnect()); nodes.clear(); buffers.clear(); pending.length = 0;
