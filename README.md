@@ -45,7 +45,7 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 - Click the water to send out waves and float a lotus. The boat responds to wave heights sampled beneath its bow and stern.
 - Drag the houseboat horizontally; release it to let its momentum settle. Tap it for a gentle rocking motion.
 - The illustrated metro runs across its viaduct. Tap it for a temporary speed boost.
-- Click the headline to release birds and rock the boat.
+- The headline cycles through English, Malayalam, Spanish, French, German, and Hindi every eight seconds. Click to change immediately. Hover, keyboard focus, and hidden tabs pause the cycle; reduced-motion mode uses manual switching. Malayalam uses locally bundled RIT Rachana and Hindi uses Noto Serif Devanagari, with their SIL Open Font Licenses in `public/fonts/`.
 - Scroll to shift the landscape, bridge, and boat at different depths.
 - Focus the scene and press Enter to make a splash. Space still starts the dinosaur game.
 - The score toggles between the current run and your saved best score.
@@ -54,4 +54,4 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 
 The background and its boat-free edit were created with built-in ImageGen. The image assets and exact generation prompts are stored in `public/images/`. The original painting is preserved; `kerala-backwaters-clean.png` is the background plate for the animated scene.
 
-Water uses irregular ambient motion and circular, perspective-scaled click ripples. The boat’s five hull samples and coconut slope samples share that same wave field. Click the rear (leftmost) metro carriage three times to reveal a waving dinosaur passenger.
+The restored rolling wave style drives the boat’s five hull samples and coconut slope samples. Click the rear (leftmost) metro carriage three times: a winged dragon emerges, grows, breathes fire across the other two carriages, and flies away. Flames fade, the train resumes, and three new clicks replay the sequence. Reduced motion presents a stationary dragon with soft flame fades.

@@ -46,7 +46,7 @@ import DinoGame from '../components/DinoGame.astro';
     <span class="sr-only" role="status" id="village-status"></span>
     <nav class="village-controls" aria-label="Village interactions"></nav>
     <main>
-      <div class="headline"><h1><button class="headline-trigger" type="button" aria-label="God’s own country is cooking something. Release birds and rock the houseboat.">God’s own country is cooking something.</button></h1></div>
+      <div class="headline"><h1><button class="headline-trigger" type="button" lang="en" aria-label="God’s own country is cooking something. Click to change language.">God’s own country is cooking something.</button></h1></div>
       <DinoGame />
     </main>
   </body>
@@ -54,6 +54,7 @@ import DinoGame from '../components/DinoGame.astro';
 
 <script>
   import { createKeralaScene } from '../lib/kerala-scene';
+  import { installHeadlineLanguages } from '../lib/headline-languages';
 
   const canvas = document.querySelector<HTMLCanvasElement>('.kerala-scene')!;
   const headline = document.querySelector<HTMLButtonElement>('.headline-trigger')!;
@@ -70,7 +71,7 @@ import DinoGame from '../components/DinoGame.astro';
       document.querySelector('#village-status')!.textContent = `${scene.houseLabels[index]}: ${open ? 'windows open, lights on, a villager walks toward the shore' : 'windows closed, lights off, the villager returns home'}.`;
     },
     onPassengerFound() {
-      document.querySelector('#village-status')!.textContent = 'You found the last metro passenger: a tiny dinosaur waves from the window.';
+      document.querySelector('#village-status')!.textContent = 'You found the last metro passenger: a dragon flies out and breathes fire over the other carriages.';
     },
     onCoconutSplash() {
       document.querySelector('#village-status')!.textContent = 'A coconut splashes into the backwaters and floats.';
@@ -130,22 +131,23 @@ import DinoGame from '../components/DinoGame.astro';
     const travel = document.documentElement.scrollHeight - innerHeight;
     scene.setScroll(travel > 0 ? Math.min(1, Math.max(0, scrollY / travel)) : 0);
   };
-  const stirScene = () => { scene.nudgeBoat(); scene.releaseBirds(); };
+  const disposeLanguages = installHeadlineLanguages(headline);
   const keyboardSplash = (event: KeyboardEvent) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
     scene.splashAt(innerWidth * .52, innerHeight * .73);
   };
-  headline.addEventListener('click', stirScene);
   canvas.addEventListener('keydown', keyboardSplash);
   addEventListener('scroll', scrollScene, { passive: true });
   addEventListener('resize', scrollScene, { passive: true });
   scrollScene();
-  addEventListener('pagehide', (event) => { if (!event.persisted) scene.destroy(); });
+  addEventListener('pagehide', (event) => { if (!event.persisted) { disposeLanguages(); scene.destroy(); } });
 </script>
 
 <style is:global>
   @font-face { font-family: "Birthstone"; src: url("/fonts/Birthstone-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "RIT Rachana"; src: url("/fonts/RIT-Rachana-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: "Noto Serif Devanagari"; src: url("/fonts/NotoSerifDevanagari.ttf") format("truetype"); font-weight: 100 900; font-style: normal; font-display: swap; }
   :root { font-family: Arial, Helvetica, sans-serif; color: #000; background: #dceef8; color-scheme: light; font-synthesis: none; -webkit-font-smoothing: antialiased; }
   * { box-sizing: border-box; }
   body { margin: 0; isolation: isolate; min-height: 175svh; overscroll-behavior-y: none; }
@@ -185,12 +187,14 @@ import DinoGame from '../components/DinoGame.astro';
   h1 { transition: color .9s ease, text-shadow .9s ease; }
   main { position: fixed; inset: 0; z-index: 1; pointer-events: none; width: min(1120px, calc(100% - 48px)); height: 100svh; margin-inline: auto; display: flex; flex-direction: column; padding-bottom: clamp(30px, 7vh, 80px); }
   .headline-trigger, :global(.runner) { pointer-events: auto; }
-  .headline-trigger { display: inline-block; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-shadow: inherit; transition: color .2s, transform .2s; }
+  .headline-trigger { display: inline-block; max-width: 100%; text-wrap: balance; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-shadow: inherit; transition: color .2s, transform .2s; }
   .headline-trigger:hover { color: #254f43; transform: translateY(-1px); }
   .headline-trigger:active { transform: translateY(1px); }
   .headline-trigger:focus-visible { outline: none; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 8px; }
   .headline { flex: 1; min-height: 50svh; display: grid; place-items: center; padding-block: 70px; text-align: center; }
-  h1 { margin: 0; font-family: "Birthstone", cursive; font-size: clamp(22px, 5.6vw, 78px); font-weight: 400; line-height: 1.4; letter-spacing: 0; white-space: nowrap; text-shadow: 0 1px 14px rgba(255,255,255,.6); }
+  h1 { margin: 0; font-family: "Birthstone", cursive; font-size: clamp(30px, 5.6vw, 78px); font-weight: 400; line-height: 1.4; letter-spacing: 0; max-width: 100%; white-space: normal; text-shadow: 0 1px 14px rgba(255,255,255,.6); }
+  .headline-trigger:lang(ml) { font-family: "RIT Rachana", serif; font-size: clamp(24px, 3.8vw, 54px); line-height: 1.5; }
+  .headline-trigger:lang(hi) { font-family: "Noto Serif Devanagari", serif; font-size: clamp(23px, 3.7vw, 52px); line-height: 1.55; }
   @media (max-width: 480px) { main { width: calc(100% - 32px); padding-bottom: 24px; } }
   @media (max-height: 900px) and (min-aspect-ratio: 1/1) {
     main { padding-bottom: 14px; }

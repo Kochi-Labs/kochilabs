@@ -4,7 +4,10 @@ import { createMetroPassenger } from './metro-passenger';
 import { createVillageHouses } from './village-houses';
 import { createLivingFoliage, foliageShaderUniforms, foliageShaderFunction } from './living-foliage';
 import { createHouseboat, createMetro, createViaduct, createLotus } from './scene-models';
-import { MAX_WAVES, WAVE_LIFETIME, sampleWaterHeight, springStep, type WaterImpulse } from './water-physics';
+import { MAX_WAVES, WAVE_LIFETIME, sampleWaterHeight as sampleWaveHeight, springStep, type WaterImpulse } from './water-physics';
+
+// The restored surface displays 65% of the shared wave height.
+const sampleWaterHeight = (...args: Parameters<typeof sampleWaveHeight>) => sampleWaveHeight(...args) * .65;
 
 export type KeralaSceneController = {
   destroy(): void;
@@ -252,7 +255,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     return raycaster.ray.intersectPlane(waterPlane, new THREE.Vector3());
   }
 
-  function impulse(x: number, y: number, strength = 22) {
+  function impulse(x: number, y: number, strength = 14) {
     const u = x / 1720 + .5;
     const v = (y - background.position.y) / 1075 + .5;
     if (!riverContains(u, v)) return;
@@ -455,7 +458,14 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     const angle = Math.atan2(rightHeight - leftHeight, 152) - THREE.MathUtils.clamp(boatVelocityX * .00012, -.025, .025);
     [boatRoll, boatRollVelocity] = springStep(boatRoll, boatRollVelocity, angle, 38, 7, dt);
     trainBoost = Math.max(0, trainBoost - dt);
-    if (!reducedMotion || trainBoost > 0) train.position.x += dt * (trainBoost > 0 ? 150 : 39);
+    if (passenger.active) {
+      // Hold the train for the little performance and bring both front cars
+      // into view if it was discovered near a screen edge.
+      trainBoost = 0;
+      const edge = Math.max(0, viewWidth / 2 - 180);
+      const stageX = THREE.MathUtils.clamp(train.position.x, -edge, edge);
+      train.position.x += (stageX - train.position.x) * (reducedMotion ? 1 : Math.min(1, dt * 3));
+    } else if (!reducedMotion || trainBoost > 0) train.position.x += dt * (trainBoost > 0 ? 150 : 39);
     const trainBoundary = viewWidth / 2 + 160;
     if (train.position.x > trainBoundary) train.position.x = -trainBoundary;
     for (let i = waves.length - 1; i >= 0; i--) if (time - waves[i]!.born > WAVE_LIFETIME) waves.splice(i, 1);
