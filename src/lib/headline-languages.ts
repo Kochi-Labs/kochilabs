@@ -10,7 +10,8 @@ export const HEADLINE_LANGUAGES = [
 ] as const;
 
 /** One readable eight-second dwell per language; a deliberate click advances it. */
-export function installHeadlineLanguages(button: HTMLButtonElement): () => void {
+export function installHeadlineLanguages(button: HTMLButtonElement, onChange?: (language: typeof HEADLINE_LANGUAGES[number]) => void): () => void {
+  const interaction = button.closest<HTMLElement>('.headline') ?? button;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let index = 0;
   let hovered = false;
@@ -27,6 +28,7 @@ export function installHeadlineLanguages(button: HTMLButtonElement): () => void 
     button.setAttribute('aria-label', `${language.text} ${language.hint}`);
     // Auto-rotation must not repeatedly interrupt screen-reader speech.
     button.setAttribute('aria-live', 'off');
+    onChange?.(language);
   }
 
   function stop() {
@@ -55,14 +57,17 @@ export function installHeadlineLanguages(button: HTMLButtonElement): () => void 
   }
   function leave() { hovered = false; schedule(); }
   function focus() { focused = true; stop(); }
-  function blur() { focused = false; schedule(); }
+  function blur(event: FocusEvent) {
+    if (event.relatedTarget instanceof Node && interaction.contains(event.relatedTarget)) return;
+    focused = false; schedule();
+  }
 
   button.addEventListener('click', advance);
-  button.addEventListener('pointerenter', enter);
-  button.addEventListener('pointerleave', leave);
-  button.addEventListener('pointercancel', leave);
-  button.addEventListener('focus', focus);
-  button.addEventListener('blur', blur);
+  interaction.addEventListener('pointerenter', enter);
+  interaction.addEventListener('pointerleave', leave);
+  interaction.addEventListener('pointercancel', leave);
+  interaction.addEventListener('focusin', focus);
+  interaction.addEventListener('focusout', blur);
   document.addEventListener('visibilitychange', schedule);
   reducedMotion.addEventListener('change', schedule);
   paint();
@@ -72,11 +77,11 @@ export function installHeadlineLanguages(button: HTMLButtonElement): () => void 
     disposed = true;
     stop();
     button.removeEventListener('click', advance);
-    button.removeEventListener('pointerenter', enter);
-    button.removeEventListener('pointerleave', leave);
-    button.removeEventListener('pointercancel', leave);
-    button.removeEventListener('focus', focus);
-    button.removeEventListener('blur', blur);
+    interaction.removeEventListener('pointerenter', enter);
+    interaction.removeEventListener('pointerleave', leave);
+    interaction.removeEventListener('pointercancel', leave);
+    interaction.removeEventListener('focusin', focus);
+    interaction.removeEventListener('focusout', blur);
     document.removeEventListener('visibilitychange', schedule);
     reducedMotion.removeEventListener('change', schedule);
   };

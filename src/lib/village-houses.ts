@@ -134,6 +134,8 @@ function createVillager(route: VillagerRoute, index: number): Villager {
 
 type HouseState = {
   open: boolean;
+  dayOpen: boolean;
+  visitorOpen: boolean;
   amount: number;
   velocity: number;
   openings: Opening[];
@@ -149,6 +151,7 @@ export function createVillageHouses() {
   // This subtree owns its day/night colors; scene-wide recoloring should skip it.
   group.userData.ownsNightColors = true;
   const states: HouseState[] = [];
+  let nightMode = false;
   const nightWood = new THREE.Color('#273d4c');
   const nightTrim = new THREE.Color('#364b58');
   const dayTrim = new THREE.Color('#a39068');
@@ -158,7 +161,7 @@ export function createVillageHouses() {
     const shutterMaterial = new THREE.MeshBasicMaterial({ color: dayColor, transparent: true, opacity: .9, side: THREE.DoubleSide });
     const detailMaterial = new THREE.MeshBasicMaterial({ color: dayTrim, transparent: true, opacity: .38, side: THREE.DoubleSide });
     const villager = createVillager(villagerRoutes[index]!, index);
-    const state: HouseState = { open: false, amount: 0, velocity: 0, openings: [], shutterMaterial, detailMaterial, dayColor, villager };
+    const state: HouseState = { open: false, dayOpen: false, visitorOpen: false, amount: 0, velocity: 0, openings: [], shutterMaterial, detailMaterial, dayColor, villager };
     states.push(state);
     for (const [px, py, pixelWidth, pixelHeight] of definition.windows) {
       const width = pixelWidth * scaleX;
@@ -244,7 +247,7 @@ export function createVillageHouses() {
 
       const person = state.villager;
       const [doorX, doorY, shoreX, shoreY, height] = person.route;
-      const destination = state.open && state.amount > .3 ? 1 : 0;
+      const destination = state.visitorOpen && state.open && state.amount > .3 ? 1 : 0;
       const previous = person.progress;
       if (reducedMotion) person.progress = destination;
       else {
@@ -287,7 +290,24 @@ export function createVillageHouses() {
       const state = states[index];
       if (!state) return false;
       state.open = !state.open;
+      state.visitorOpen = state.open;
+      if (!nightMode) state.dayOpen = state.open;
       return state.open;
+    },
+    setNight(enabled: boolean): { index: number; open: boolean }[] {
+      if (nightMode === enabled) return [];
+      nightMode = enabled;
+      const changed: { index: number; open: boolean }[] = [];
+      states.forEach((state, index) => {
+        // Each new night starts with welcoming lights in every house. Daylight
+        // restores the visitor's daytime choices; night clicks are temporary.
+        const open = enabled || state.dayOpen;
+        if (state.open !== open) changed.push({ index, open });
+        state.open = open;
+        // Automatic evening lights do not send the entire village outdoors.
+        state.visitorOpen = !enabled && state.dayOpen;
+      });
+      return changed;
     },
     update,
     destroy() {

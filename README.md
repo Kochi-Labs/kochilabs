@@ -34,7 +34,7 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 ## Scene interactions
 
 - Brush the painted palms and shoreline trees to bend their foliage toward your pointer. Shake a palm sideways to drop a coconut; tapping a palm also gives it a shake. The coconut falls under gravity, scales with its distance from the viewer, splashes into the water, and floats with the wave surface.
-- Click any of the twelve village houses to swing its window shutters open and switch on warm interior lights. Click again to close them. Each house keeps its own state through day/night changes. A tiny villager emerges and walks toward the shore when a house opens, and returns when it closes. Keyboard users can Tab to the individual house controls and the palm-shake control; these controls become visible on focus.
+- Click any of the twelve village houses to swing its window shutters open and switch on warm interior lights. Click again to close them. Nightfall automatically opens and lights every house. Night clicks can override an individual house for that night; daylight restores its previous daytime state. Automatic night lighting keeps villagers indoors. A tiny villager emerges and walks toward the shore when a house opens, and returns when it closes. Keyboard users can Tab to the individual house controls and the palm-shake control; these controls become visible on focus.
 
 - In daylight, the sun casts a warm disc and shimmering light path onto the water. Click-generated waves distort both the sun and moon reflections; switching day/night smoothly blends between them.
 
@@ -46,7 +46,7 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 - Drag the houseboat horizontally; release it to let its momentum settle. Tap it for a gentle rocking motion.
 - The illustrated metro runs across its viaduct. Click any carriage once to ignite the last (leftmost) carriage; the other two remain intact. Rain arrives, extinguishes the fire, and leaves steam and rear-carriage damage.
 - The headline cycles through English, Spanish, French, German, and Hindi every eight seconds. Click to change immediately. Hover, keyboard focus, and hidden tabs pause the cycle; reduced-motion mode uses manual switching. Hindi uses locally bundled Noto Serif Devanagari, with its SIL Open Font License in `public/fonts/`.
-- A small corked bottle occasionally drifts into the backwaters. Click it to unfold a short handwritten note; close the note with its close button, Escape, or a click outside it. A keyboard shortcut becomes available while the bottle is present. The bottle follows the same water heights as the boat and coconuts.
+- A small corked bottle hangs from the last letter of the headline in every language (the final g in English). Click or keyboard-activate it to open an aged palm-leaf message in that language. Close with its close button, Escape, or a click outside. The bottle anchor follows wrapped lines, font loading, and resizing; reduced motion stops its gentle sway.
 - Scroll to shift the landscape, bridge, and boat at different depths.
 - Focus the scene and press Enter to make a splash. Space still starts the dinosaur game.
 - The score toggles between the current run and your saved best score.

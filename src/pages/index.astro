@@ -46,13 +46,31 @@ import DinoGame from '../components/DinoGame.astro';
     <span class="sr-only" role="status" id="time-status"></span>
     <span class="sr-only" role="status" id="village-status"></span>
     <nav class="village-controls" aria-label="Village interactions"></nav>
-    <dialog class="bottle-note" aria-label="A message from the backwaters" aria-describedby="bottle-message">
+    <dialog class="bottle-note" aria-label="An old palm-leaf message" aria-describedby="bottle-message">
       <form method="dialog"><button class="note-close" aria-label="Close note" autofocus>×</button></form>
       <p id="bottle-message"></p>
-      <span class="note-signature" aria-hidden="true">From the backwaters</span>
+      <span class="leaf-binding leaf-binding-left" aria-hidden="true"></span>
+      <span class="leaf-binding leaf-binding-right" aria-hidden="true"></span>
     </dialog>
     <main>
-      <div class="headline"><h1><button class="headline-trigger" type="button" lang="en" aria-label="God’s own country is cooking something. Click to change language.">God’s own country is cooking something.</button></h1></div>
+      <div class="headline">
+        <h1><button class="headline-trigger" type="button" lang="en" aria-label="God’s own country is cooking something. Click to change language.">God’s own country is cooking something.</button></h1>
+        <button class="hanging-bottle" type="button" aria-label="Open the palm-leaf message" title="Open the palm-leaf message">
+          <svg viewBox="0 0 64 144" aria-hidden="true">
+            <defs>
+              <linearGradient id="bottle-glass"><stop stop-color="#b9e3d4" stop-opacity=".7"/><stop offset=".3" stop-color="#eaffee" stop-opacity=".85"/><stop offset=".6" stop-color="#73a895" stop-opacity=".7"/><stop offset="1" stop-color="#285e51" stop-opacity=".9"/></linearGradient>
+              <linearGradient id="bottle-leaf" x2="1" y2="1"><stop stop-color="#e6c88a"/><stop offset="1" stop-color="#a17c40"/></linearGradient>
+            </defs>
+            <path class="bottle-cord" d="M32 0 C28 14 36 25 32 40 Q21 43 24 48 Q33 54 41 47 Q43 42 32 40" fill="none" stroke="#776245" stroke-width="1.8"/>
+            <path d="M26 38 L38 38 L39 51 L25 51Z" fill="#91704b" stroke="#665037" stroke-width="1"/>
+            <path d="M25 48 L39 48 L39 64 Q40 69 47 76 Q51 80 51 88 L51 126 Q51 136 42 138 L22 138 Q13 136 13 126 L13 88 Q13 80 18 76 Q25 69 25 64Z" fill="url(#bottle-glass)" stroke="#3a7566" stroke-width="1.6"/>
+            <path d="M25 85 Q32 81 39 85 L40 125 Q33 130 25 126Z" fill="url(#bottle-leaf)" stroke="#8d713d" stroke-width="1" transform="rotate(-12 32 104)"/>
+            <path d="M28 94h8m-8 6h9m-9 6h7m-7 6h8" stroke="#725a35" stroke-width=".9" opacity=".7" transform="rotate(-12 32 104)"/>
+            <path d="M21 84 Q18 86 18 94 L18 120" fill="none" stroke="#f4fff1" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+            <path d="M24 52h16M25 57h14" stroke="#d6eacb" stroke-width="2" opacity=".7"/>
+          </svg>
+        </button>
+      </div>
       <DinoGame />
     </main>
   </body>
@@ -61,33 +79,24 @@ import DinoGame from '../components/DinoGame.astro';
 <script>
   import { createKeralaScene } from '../lib/kerala-scene';
   import { installHeadlineLanguages } from '../lib/headline-languages';
+  import { installHangingBottle } from '../lib/headline-bottle';
 
   const canvas = document.querySelector<HTMLCanvasElement>('.kerala-scene')!;
   const headline = document.querySelector<HTMLButtonElement>('.headline-trigger')!;
   const noteDialog = document.querySelector<HTMLDialogElement>('.bottle-note')!;
-  const bottleButton = document.createElement('button');
-  bottleButton.type = 'button';
-  bottleButton.className = 'scene-shortcut';
-  bottleButton.textContent = 'Read the message in the drifting bottle';
-  bottleButton.hidden = true;
+  const bottleButton = document.querySelector<HTMLButtonElement>('.hanging-bottle')!;
+  const hangingBottle = installHangingBottle(headline, bottleButton, noteDialog);
   const houseButtons: HTMLButtonElement[] = [];
   const scene = createKeralaScene(canvas, {
     backgroundUrl: '/images/kerala-backwaters-clean.png',
     moonElement: document.querySelector<HTMLButtonElement>('.celestial')!,
-    onBottleAvailable(available) {
-      bottleButton.hidden = !available;
-    },
-    onBottleFound(note) {
-      document.querySelector('#bottle-message')!.textContent = note;
-      if (!noteDialog.open) noteDialog.showModal();
-    },
-    onHouseChange(index, open) {
+    onHouseChange(index, open, automatic) {
       const button = houseButtons[index];
       if (button) {
         button.setAttribute('aria-pressed', String(open));
         button.textContent = `${open ? 'Close' : 'Open'} windows: ${scene.houseLabels[index]}`;
       }
-      document.querySelector('#village-status')!.textContent = `${scene.houseLabels[index]}: ${open ? 'windows open, lights on, a villager walks toward the shore' : 'windows closed, lights off, the villager returns home'}.`;
+      if (!automatic) document.querySelector('#village-status')!.textContent = `${scene.houseLabels[index]}: ${open ? 'windows open, lights on' : 'windows closed, lights off'}.`;
     },
     onStormChange(intensity) { document.body.style.setProperty('--storm', String(intensity)); },
     onSequencePhase(phase) {
@@ -106,10 +115,8 @@ import DinoGame from '../components/DinoGame.astro';
     },
   });
   const villageControls = document.querySelector<HTMLElement>('.village-controls')!;
-  villageControls.append(bottleButton);
-  bottleButton.addEventListener('click', () => scene.openBottle());
   noteDialog.addEventListener('keydown', (event) => event.stopPropagation());
-  noteDialog.addEventListener('close', () => canvas.focus({ preventScroll: true }));
+  noteDialog.addEventListener('close', () => bottleButton.focus({ preventScroll: true }));
   noteDialog.addEventListener('click', (event) => {
     if (event.target !== noteDialog) return;
     const bounds = noteDialog.getBoundingClientRect();
@@ -144,7 +151,7 @@ import DinoGame from '../components/DinoGame.astro';
     celestial.setAttribute('aria-pressed', String(isNight));
     celestial.setAttribute('aria-label', `${isNight ? 'Moon' : 'Sun'}. Double-click to change to ${isNight ? 'day' : 'night'}. Enter or Space also works.`);
     celestial.title = `Double-click for ${isNight ? 'day' : 'night'}`;
-    document.querySelector('#time-status')!.textContent = isNight ? 'Night falls over the backwaters.' : 'Daylight returns to the backwaters.';
+    document.querySelector('#time-status')!.textContent = isNight ? 'Night falls over the backwaters. All village houses light up.' : 'Daylight returns to the backwaters.';
     document.querySelector('meta[name="theme-color"]')!.setAttribute('content', isNight ? '#101e38' : '#dceef8');
   };
   celestial.addEventListener('dblclick', () => {
@@ -165,7 +172,7 @@ import DinoGame from '../components/DinoGame.astro';
     const travel = document.documentElement.scrollHeight - innerHeight;
     scene.setScroll(travel > 0 ? Math.min(1, Math.max(0, scrollY / travel)) : 0);
   };
-  const disposeLanguages = installHeadlineLanguages(headline);
+  const disposeLanguages = installHeadlineLanguages(headline, hangingBottle.setLanguage);
   const keyboardSplash = (event: KeyboardEvent) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
@@ -175,7 +182,7 @@ import DinoGame from '../components/DinoGame.astro';
   addEventListener('scroll', scrollScene, { passive: true });
   addEventListener('resize', scrollScene, { passive: true });
   scrollScene();
-  addEventListener('pagehide', (event) => { if (!event.persisted) { disposeLanguages(); scene.destroy(); } });
+  addEventListener('pagehide', (event) => { if (!event.persisted) { disposeLanguages(); hangingBottle.destroy(); scene.destroy(); } });
 </script>
 
 <style is:global>
@@ -191,12 +198,27 @@ import DinoGame from '../components/DinoGame.astro';
 </style>
 
 <style>
-  .bottle-note { position: fixed; inset: 0; width: min(370px, calc(100vw - 40px)); margin: auto; padding: 54px 34px 32px; border: 0; border-radius: 3px 9px 5px 2px; color: #3d4435; background: radial-gradient(ellipse at 12% 8%, #fffbed, transparent 75%), repeating-linear-gradient(3deg, #e8d8b70b 0 2px, transparent 2px 5px), #f4e8cc; box-shadow: 0 14px 65px #071d2259, inset 0 0 32px #bca07128; transform: rotate(-1.5deg); }
-  .bottle-note::backdrop { background: #0c272640; backdrop-filter: blur(3px); }
-  .bottle-note p { margin: 0 0 28px; font: 400 clamp(36px, 7vw, 43px)/1.13 'Birthstone', cursive; text-wrap: pretty; }
-  .note-signature { display: block; text-align: right; font: 400 25px/1.2 'Birthstone', cursive; opacity: .65; }
-  .note-close { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; border: 0; background: transparent; font: 27px/1 Arial, sans-serif; color: #5d6854; cursor: pointer; }
-  .note-close:focus-visible { outline: 1px solid #6c7c60; border-radius: 50%; outline-offset: -5px; }
+  .hanging-bottle { position: absolute; z-index: 2; width: 44px; height: clamp(76px, 7.5vw, 96px); padding: 0; border: 0; color: inherit; background: transparent; cursor: pointer; pointer-events: auto; transform: translateX(-50%); visibility: hidden; }
+  .hanging-bottle[data-ready="true"] { visibility: visible; }
+  .hanging-bottle svg { height: 100%; width: 100%; overflow: visible; transform-origin: 50% 0; animation: bottle-sway 6s ease-in-out infinite; filter: drop-shadow(1px 3px 2px #193b331f); }
+  .hanging-bottle:hover svg { animation-play-state: paused; filter: drop-shadow(0 2px 5px #f0cf84aa); }
+  .hanging-bottle:focus-visible { outline: 1px dashed currentColor; outline-offset: 3px; border-radius: 12px; }
+  @keyframes bottle-sway { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+  :global(body[data-time="night"]) .hanging-bottle { filter: brightness(.88) drop-shadow(0 0 5px #c4e5d647); }
+  :global(body[data-time="night"]) .bottle-cord { stroke: #c3b58f; }
+  .bottle-note { position: fixed; inset: 0; width: min(600px, calc(100vw - 36px)); margin: auto; padding: 60px 60px 54px; border: 1px solid #8e763d; border-radius: 34px 7px 28px 11px / 13px 22px 14px 23px; color: #48351c; background: radial-gradient(ellipse at 4% 70%, #715b294d, transparent 35%), radial-gradient(ellipse at 96% 15%, #70562d55, transparent 30%), repeating-linear-gradient(0deg, #5d562b16 0 1px, transparent 1px 4px), linear-gradient(180deg, #cbb77a, #dccb8d 35%, #c7ae69 80%, #a58a48); box-shadow: 0 16px 65px #071d2266, inset 0 0 19px #72572666, inset 0 2px 2px #f8e8b599; transform: rotate(-1deg); overflow: visible; }
+  .bottle-note::before { content: ''; position: absolute; inset: 9px 12px; border-block: 1px solid #79623744; border-radius: inherit; pointer-events: none; }
+  .bottle-note::backdrop { background: #0c27264d; backdrop-filter: blur(3px); }
+  .bottle-note p { margin: 0; text-align: center; font: 400 clamp(34px, 5vw, 43px)/1.25 'Birthstone', cursive; text-shadow: 0 1px #e6d29788; text-wrap: pretty; }
+  .bottle-note p:lang(hi) { font: 400 clamp(22px, 4vw, 30px)/1.7 'Noto Serif Devanagari', serif; }
+  .leaf-binding { position: absolute; top: 50%; width: 9px; height: 9px; border: 2px solid #80612e; border-radius: 50%; background: #382d1d; box-shadow: 0 1px 1px #edda9c; }
+  .leaf-binding-left { left: 22px; }
+  .leaf-binding-right { right: 22px; }
+  .leaf-binding::after { content: ''; position: absolute; width: 2px; height: 36px; top: 1px; left: 2px; border-right: 2px solid #ae874a; border-radius: 50%; transform: rotate(13deg); }
+  .note-close { position: absolute; top: 8px; right: 9px; width: 36px; height: 36px; border: 0; background: transparent; font: 25px/1 Arial, sans-serif; color: #544224; cursor: pointer; }
+  .note-close:focus-visible { outline: 1px solid #665129; border-radius: 50%; outline-offset: -4px; }
+  @media (max-width: 480px) { .bottle-note { padding: 54px 39px 46px; } .leaf-binding-left { left: 14px; } .leaf-binding-right { right: 14px; } }
+  @media (prefers-reduced-motion: reduce) { .hanging-bottle svg { animation: none; } }
   .landscape { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
   .landscape img { transition: filter .9s ease; width: 100%; height: 100%; object-fit: cover; object-position: center; }
   .kerala-scene { position: fixed; inset: 0; z-index: -1; display: block; width: 100%; height: 100%; cursor: crosshair; outline: none; touch-action: pan-y; }
@@ -231,7 +253,7 @@ import DinoGame from '../components/DinoGame.astro';
   .headline-trigger:hover { color: #254f43; transform: translateY(-1px); }
   .headline-trigger:active { transform: translateY(1px); }
   .headline-trigger:focus-visible { outline: none; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 8px; }
-  .headline { flex: 1; min-height: 50svh; display: grid; place-items: center; padding-block: 70px; text-align: center; }
+  .headline { position: relative; flex: 1; min-height: 50svh; display: grid; place-items: center; padding-block: 70px; text-align: center; }
   h1 { margin: 0; font-family: "Birthstone", cursive; font-size: clamp(30px, 5.6vw, 78px); font-weight: 400; line-height: 1.4; letter-spacing: 0; max-width: 100%; white-space: normal; text-shadow: 0 1px 14px rgba(255,255,255,.6); }
   .headline-trigger:lang(hi) { font-family: "Noto Serif Devanagari", serif; font-size: clamp(23px, 3.7vw, 52px); line-height: 1.55; }
   @media (max-width: 480px) { main { width: calc(100% - 32px); padding-bottom: 24px; } }
