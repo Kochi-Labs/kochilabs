@@ -1,0 +1,139 @@
+---
+import DinoGame from '../components/DinoGame.astro';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f4ed" />
+    <meta name="description" content="Kochi Labs is cooking something. A few ideas, a lot of curiosity, and something worth the wait. Play a little while our new home takes shape." />
+    <title>Kochi Labs — Something is cooking</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="wordmark" href="/" aria-label="Kochi Labs home">
+          <svg class="brand-mark" width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M16 2v28M2 16h28M6.1 6.1l19.8 19.8M6.1 25.9 25.9 6.1" stroke="currentColor" stroke-width="4.7" />
+          </svg>
+          <span>kochi labs<span class="brand-period">.</span></span>
+        </a>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> Work in progress</span>
+      </header>
+
+      <main id="main">
+        <section class="hero" aria-labelledby="hero-title">
+          <p class="eyebrow">A little quiet. A lot in the making.</p>
+          <h1 id="hero-title"><span>Kochi Labs is</span><em>cooking something.</em></h1>
+
+          <div class="cooking-illustration" aria-hidden="true">
+            <svg width="122" height="102" viewBox="0 0 122 102" fill="none">
+              <ellipse cx="61" cy="91" rx="36" ry="3" fill="currentColor" opacity=".07" />
+              <g class="steam" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M48 28c-7-8 7-10 1-19" />
+                <path d="M61 25c-7-8 8-12 2-21" />
+                <path d="M75 29c-6-7 7-9 2-16" />
+              </g>
+              <g stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M31 52h60l-4 21a16 16 0 0 1-16 13H51a16 16 0 0 1-16-13l-4-21Z" fill="#e5e6d9" />
+                <path d="M31 57h-8a4 4 0 0 0 0 8h10M91 57h8a4 4 0 0 1 0 8h-10" />
+                <path d="m29 48 64-9M39 46c0-9 11-16 24-16 12 0 21 4 25 10" fill="#f6f4ed" />
+                <path d="m57 30-.6-4a4 4 0 0 1 7.9-1.1l.6 4" />
+                <path d="M43 60v8a10 10 0 0 0 5 9" stroke="#9ba68a" />
+                <path d="M105 28v8m-4-4h8M20 38v6m-3-3h6" stroke-width="1.7" />
+              </g>
+            </svg>
+          </div>
+
+          <p class="hero-description">A few ideas. A lot of curiosity.<br class="mobile-break" /> Something worth the wait.</p>
+          <p class="coming-soon">Our new home is on its way<span class="trailing-dot">.</span></p>
+        </section>
+
+        <DinoGame />
+      </main>
+
+      <footer class="site-footer">
+        <span>© 2026 Kochi Labs</span>
+        <span class="footer-signoff">Made of curiosity.<svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2v16M2 10h16M4.3 4.3l11.4 11.4M4.3 15.7 15.7 4.3" stroke="currentColor" stroke-width="1.5" /></svg></span>
+      </footer>
+    </div>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #243b30;
+    background: #f6f4ed;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    --color-paper: #f6f4ed;
+    --color-ink: #243b30;
+    --color-olive: #6b7951;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-width: 300px; }
+  button, input { font: inherit; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  ::selection { color: #243b30; background: #dce0c8; }
+  :focus-visible { outline: 2px solid #6b7951; outline-offset: 6px; }
+  .skip-link { position: fixed; z-index: 10; top: -100px; left: 20px; padding: 12px 18px; background: #243b30; color: #f6f4ed; }
+  .skip-link:focus { top: 16px; }
+</style>
+
+<style>
+  .page-shell { width: min(1120px, calc(100% - 112px)); min-height: 100svh; margin-inline: auto; display: flex; flex-direction: column; }
+  .site-header { padding-top: 35px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .wordmark { display: inline-flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; font-size: 25px; font-weight: 650; letter-spacing: -1.3px; }
+  .brand-mark { width: 29px; height: 29px; }
+  .brand-period { color: #6b7951; }
+  .status { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid #d8dace; border-radius: 99px; color: #5d695b; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.45px; white-space: nowrap; }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: #7c8c61; box-shadow: 0 0 0 3px #e8eadf; }
+  main { flex: 1; }
+  .hero { padding: 72px 0 59px; text-align: center; }
+  .eyebrow { margin: 0 0 24px; font-family: "Courier New", monospace; font-size: 10px; line-height: 1.6; letter-spacing: 2.2px; text-transform: uppercase; color: #626e58; }
+  h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(56px, 6.7vw, 88px); line-height: 1.04; letter-spacing: -4.7px; font-weight: 400; }
+  h1 span, h1 em { display: block; }
+  h1 em { margin-top: 3px; color: #6b7951; font-weight: 400; letter-spacing: -4.5px; }
+  .cooking-illustration { width: 122px; height: 102px; margin: 20px auto 10px; color: #6b7951; transform: rotate(-4deg); }
+  .steam { animation: simmer 4s ease-in-out infinite; transform-origin: 60px 30px; }
+  .hero-description { margin: 0; color: #5c665b; font-size: 14px; line-height: 1.8; letter-spacing: .02px; }
+  .mobile-break { display: none; }
+  .coming-soon { margin: 11px 0 0; color: #626e58; font-size: 12px; letter-spacing: .1px; }
+  .trailing-dot { color: #6b7951; }
+  .site-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 0 25px; border-top: 1px solid #dfe0d6; color: #626e58; font-size: 10px; letter-spacing: .15px; }
+  .footer-signoff { display: inline-flex; align-items: center; gap: 8px; }
+  .footer-signoff svg { color: #7b8965; }
+  @keyframes simmer { 0%, 100% { transform: translateY(0); opacity: .75; } 50% { transform: translateY(-3px); opacity: 1; } }
+  @media (min-width: 1440px) { .hero { padding-top: 85px; padding-bottom: 68px; } }
+  @media (max-width: 760px) {
+    .page-shell { width: calc(100% - 48px); }
+    .site-header { padding-top: 26px; }
+    .wordmark { font-size: 22px; gap: 9px; }
+    .brand-mark { width: 25px; height: 25px; }
+    .status { font-size: 8px; letter-spacing: 1px; padding: 8px 10px; }
+    .hero { padding: 70px 0 45px; }
+    .eyebrow { font-size: 9px; letter-spacing: 1.5px; margin-bottom: 25px; }
+    h1 { font-size: clamp(44px, 8.1vw, 64px); letter-spacing: -2.7px; line-height: 1.1; }
+    h1 em { letter-spacing: -2.7px; }
+    .cooking-illustration { margin-top: 24px; margin-bottom: 14px; }
+    .hero-description { font-size: 13px; }
+    .mobile-break { display: block; }
+    .coming-soon { margin-top: 12px; }
+    .site-footer { font-size: 9px; padding: 20px 0; }
+  }
+  @media (max-width: 380px) {
+    .page-shell { width: calc(100% - 36px); }
+    .wordmark { font-size: 20px; }
+    .status { font-size: 7px; letter-spacing: .7px; padding: 8px; }
+    h1 { font-size: 39px; letter-spacing: -2.3px; }
+    h1 em { letter-spacing: -2.5px; }
+    .eyebrow { font-size: 8px; letter-spacing: 1.2px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .steam { animation: none; } }
+</style>
