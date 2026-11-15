@@ -67,7 +67,7 @@
         if (!ctx) return;
         const x = dinosaurX;
         const y = ground - 42 - jumpHeight;
-        ctx.fillStyle = '#ffed00';
+        ctx.fillStyle = '#000000';
         dinosaur.forEach((row, rowIndex) => {
           for (let col = 0; col < row.length; col++) {
             if (row[col] === 'X') ctx.fillRect(x + col * 2, y + rowIndex * 2, 2, 2);
@@ -84,7 +84,7 @@
         if (!ctx) return;
         const y = ground - cactusHeight;
         const stem = Math.max(5, cactusWidth * .28);
-        ctx.fillStyle = '#ffed00';
+        ctx.fillStyle = '#000000';
         ctx.fillRect(x + cactusWidth / 2 - stem / 2, y, stem, cactusHeight);
         ctx.fillRect(x, y + 9, 5, cactusHeight * .43);
         ctx.fillRect(x, y + cactusHeight * .54, cactusWidth / 2, 5);
@@ -215,7 +215,7 @@
 </script>
 
 <style>
-  .runner { width: 100%; max-width: 1040px; margin-inline: auto; color: #ffed00; }
+  .runner { width: 100%; max-width: 1040px; margin-inline: auto; color: #000000; }
   .runner-heading { height: 36px; display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
   .runner-score { font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 3px; }
   .runner-field { position: relative; }
@@ -223,7 +223,7 @@
   .runner-canvas:focus, .runner-canvas:focus-visible { outline: none; border: 0; box-shadow: none; }
   .runner-overlay { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); }
   [hidden] { display: none !important; }
-  .runner-play, .runner-pause { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border: 0; border-radius: 0; background: transparent; color: #ffed00; cursor: pointer; outline: none; }
+  .runner-play, .runner-pause { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border: 0; border-radius: 0; background: transparent; color: #000000; cursor: pointer; outline: none; }
   .runner-play:hover, .runner-pause:hover { opacity: .7; }
-  .runner-play:focus-visible, .runner-pause:focus-visible { filter: drop-shadow(0 0 7px #ffed00); }
+  .runner-play:focus-visible, .runner-pause:focus-visible { filter: drop-shadow(0 0 7px #000000); }
 </style>

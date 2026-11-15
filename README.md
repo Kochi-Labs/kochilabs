@@ -1,6 +1,6 @@
 # Kochi Raps
 
-A minimal Astro holding page: “Kochi Raps is cooking something.” Includes an original Chrome-inspired dinosaur runner with keyboard and touch controls. The page uses a black background and vibrant yellow, with only the headline and game score visible.
+A minimal Astro holding page: “Kochi Raps is cooking something.” Includes an original Chrome-inspired dinosaur runner with keyboard and touch controls. The page uses a vibrant yellow background and black text and game graphics, with only the headline and game score visible.
 
 ## Development
 
