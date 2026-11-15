@@ -29,10 +29,18 @@ The production site is generated in `dist/` and can be deployed to a static host
 
 Press Space anywhere on the page or tap the game to start or restart. Press Space, Arrow Up, or tap to jump. The pause icon or Escape pauses the game. A restart icon appears after a collision; Space and tapping the game also restart it. The current score is shown above the game.
 
-The signature heading uses the locally hosted Birthstone font from Google Fonts. Its SIL Open Font License is included in `public/fonts/OFL-Birthstone.txt`. The game includes scrolling ground, clouds, and an animated crow. The background illustration is static.
+The signature heading uses the locally hosted Birthstone font from Google Fonts. Its SIL Open Font License is included in `public/fonts/OFL-Birthstone.txt`. The game includes scrolling ground, clouds, and an animated crow. The painted Kerala background is layered with an interactive Three.js scene.
 
 ## Scene interactions
 
-Move the pointer for subtle scenery movement. Click the headline or sky to release birds, and click the water to create a ripple. The score toggles between the current run and your saved best score. Reduced-motion preferences disable scenery movement and moving effects.
+- Click the water to send out waves and float a lotus. The boat responds to wave heights sampled beneath its bow and stern.
+- Drag the houseboat horizontally; release it to let its momentum settle. Tap it for a gentle rocking motion.
+- The illustrated metro runs across its viaduct. Tap it for a temporary speed boost.
+- Click the headline to release birds and rock the boat.
+- Scroll to shift the landscape, bridge, and boat at different depths.
+- Focus the scene and press Enter to make a splash. Space still starts the dinosaur game.
+- The score toggles between the current run and your saved best score.
 
-The original background was created with the built-in ImageGen tool. The asset and generation prompt are in `public/images/kerala-backwaters.png` and `public/images/kerala-backwaters-prompt.txt`.
+`src/lib/kerala-scene.ts` owns the Three.js renderer and interactions. `src/lib/scene-models.ts` contains the illustrated geometry. `src/lib/water-physics.ts` contains travelling-wave sampling and damped spring integration. This is a lightweight wave and buoyancy simulation, not a full fluid solver. Fixed timesteps, capped pixel ratio, bounded effects, background-tab pausing, and resource cleanup keep the scene manageable. Reduced-motion preferences stop ambient water and train motion and soften direct interactions. A static image remains available if WebGL cannot start.
+
+The background and its boat-free edit were created with built-in ImageGen. The image assets and exact generation prompts are stored in `public/images/`. The original painting is preserved; `kerala-backwaters-clean.png` is the background plate for the animated scene.
