@@ -60,3 +60,7 @@ The background and its boat-free edit were created with built-in ImageGen. The i
 The restored rolling wave style drives the boat’s five hull samples and coconut slope samples. The houseboat keeps the original traditional kettuvallam shape: upswept wooden hull, rounded woven roof, arched cabin windows, and an open veranda. A lightly weathered seafoam hull, honey cabin, ivory woven roof, and warm timber trim brighten the original design. Lit materials add wood grain, woven detail, glass highlights, and warm night lighting. A separate render target captures the actual boat and lighting for a water reflection distorted by the shared wave field; soft contact shading and a movement wake anchor it to the river. `luxury-houseboat.ts` owns its model and lights; `boat-water.ts` owns its reflection and water contact.
 
 Click any metro carriage once to ignite only the last carriage. Rain arrives after five seconds and extinguishes its flames by twelve seconds, followed by cooling steam. Scorch marks, warped panels, and cracked windows remain until the train leaves the screen. Another click after the sequence replays it. The dragon is removed. This is a real-time visual simulation, not a photorealistic fluid or structural simulation.
+
+## Brand placement demo
+
+Append `?brand=demo` to preview a small Kochi Labs wordmark and placeholder mark at the top center, with day/night colours. The regular URL keeps the existing layout. Replace the sample mark with the approved logo before making the lockup permanent.

@@ -14,6 +14,14 @@ import DinoGame from '../components/DinoGame.astro';
     <link rel="preload" href="/fonts/Birthstone-Regular.ttf" as="font" type="font/ttf" crossorigin />
   </head>
   <body>
+    <header class="brand-lockup" aria-label="Kochi Labs" hidden>
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <path d="M16 4v24M4 16h24M7.5 7.5l17 17M7.5 24.5l17-17" />
+        </g>
+      </svg>
+      <span class="brand-name">Kochi <span>Labs</span></span>
+    </header>
     <div class="landscape" aria-hidden="true">
       <img src="/images/kerala-backwaters-clean.png" alt="" fetchpriority="high" decoding="async" />
     </div>
@@ -67,6 +75,9 @@ import DinoGame from '../components/DinoGame.astro';
   import { createKeralaScene } from '../lib/kerala-scene';
   import { installHeadlineLanguages } from '../lib/headline-languages';
   import { installBottleNote } from '../lib/bottle-note';
+
+  // A shareable placement concept, enabled only by the demo URL.
+  document.querySelector<HTMLElement>('.brand-lockup')!.hidden = new URLSearchParams(location.search).get('brand') !== 'demo';
 
   const canvas = document.querySelector<HTMLCanvasElement>('.kerala-scene')!;
   const headline = document.querySelector<HTMLButtonElement>('.headline-trigger')!;
@@ -188,6 +199,14 @@ import DinoGame from '../components/DinoGame.astro';
 </style>
 
 <style>
+  .brand-lockup { position: fixed; z-index: 2; top: max(env(safe-area-inset-top), clamp(28px, 4.5svh, 44px)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; color: #204b43; pointer-events: none; user-select: none; text-shadow: 0 1px 12px #edf7f56b; transition: color .9s ease; }
+  .brand-lockup[hidden] { display: none; }
+  .brand-mark { width: 25px; height: 25px; flex: none; }
+  .brand-name { font: 600 19px/1.2 Arial, Helvetica, sans-serif; letter-spacing: -.5px; white-space: nowrap; }
+  .brand-name span { font-weight: 400; }
+  :global(body[data-time="night"]) .brand-lockup { color: #f2e8c9; text-shadow: 0 1px 14px #071b3b80; }
+  @media (max-width: 480px) { .brand-lockup { gap: 8px; top: max(env(safe-area-inset-top), 28px); } .brand-mark { width: 22px; height: 22px; } .brand-name { font-size: 17px; } }
+  @media (prefers-reduced-motion: reduce) { .brand-lockup { transition: none; } }
   .leaf-scroll-canvas { display: none; width: 100%; height: clamp(220px, 42vw, 300px); pointer-events: none; }
   .bottle-note[data-scroll="ready"] { width: min(660px, calc(100vw - 24px)); padding: 0; border: 0; background: none; box-shadow: none; transform: none; }
   .bottle-note[data-scroll="ready"]::before, .bottle-note[data-scroll="ready"] .leaf-binding { display: none; }
