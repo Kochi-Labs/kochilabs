@@ -1,0 +1,15 @@
+{
+  "file": "/audio/metro-roll.mp3",
+  "title": "Background Rumble Noise",
+  "author": "gryc (Gryc Ueusp)",
+  "sourceURL": "https://opengameart.org/content/background-rumble-noise",
+  "downloadURL": "https://opengameart.org/sites/default/files/background_ambience.mp3",
+  "license": "Creative Commons Attribution 3.0 Unported",
+  "licenseURL": "https://creativecommons.org/licenses/by/3.0/",
+  "attribution": "Background Rumble Noise by gryc (Gryc Ueusp), via OpenGameArt, licensed CC BY 3.0. Adapted: excerpt 4\u201325 seconds, filtering, mono MP3 conversion and loudness normalization.",
+  "recordingType": "Actual acoustic train-trip recording, not synthesized. Source does not identify train model or location.",
+  "edits": "Author-recommended looping segment 4\u201325s. High-pass 45Hz and low-pass 4kHz; two-pass -23 LUFS target, -4 dB true peak ceiling; mono 44.1kHz 96kbps MP3, 40ms edge fades. Source is an 11.025kHz mono recording.",
+  "durationSeconds": 21,
+  "bytes": 253172,
+  "licenseVerifiedOn": "2026-11-16"
+}

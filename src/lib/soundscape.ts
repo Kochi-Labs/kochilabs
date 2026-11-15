@@ -1,5 +1,6 @@
 export type SoundEffect = 'water' | 'boat' | 'palm' | 'window' | 'coconut' | 'cork' | 'paperOpen' | 'paperClose' | 'birds' | 'jump' | 'land' | 'gameOver' | 'gameStart' | 'celestial' | 'language';
 export type SoundState = 'waiting' | 'playing' | 'muted' | 'unavailable';
+export type SceneSoundMotion = { metroPan: number; metroMoving: boolean; boatPan: number; boatSpeed: number; boatDragging: boolean };
 
 const PREFERENCE = 'kochi-labs-sound-muted';
 const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
@@ -42,6 +43,9 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   const nodes = new Set<AudioNode>();
   const voices = new Set<{ source: AudioBufferSourceNode; finish: () => void }>();
   const beds = new Map<Bed, { gain: GainNode; next: number }>();
+  const movers = new Map<'metro' | 'boat', { gain: GainNode; panner: PannerNode; next: number }>();
+  let motion: SceneSoundMotion = { metroPan: 0, metroMoving: false, boatPan: 0, boatSpeed: 0, boatDragging: false };
+  let lastMotionUpdate = -1;
   const lastEffect = new Map<SoundEffect, number>();
   const pending: { type: SoundEffect; pan: number; intensity: number; at: number }[] = [];
   const abort = new AbortController();
@@ -63,11 +67,12 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       voice.finish();
     }
     beds.forEach(bed => { bed.next = 0; });
+    movers.forEach(mover => { mover.next = 0; });
   }
   function sample(file: string, at: number, strength: number, pan: number, destination: AudioNode, options: { offset?: number; duration?: number; fade?: number; ambience?: boolean } = {}) {
     const buffer = buffers.get(file);
     // Reserve space for two overlapping voices per bed even during rapid clicks.
-    if (!context || !buffer || destroyed || voices.size >= (options.ambience ? 32 : 20)) return false;
+    if (!context || !buffer || destroyed || voices.size >= (options.ambience ? 32 : 16)) return false;
     const offset = clamp(options.offset ?? 0, 0, Math.max(0, buffer.duration - .05));
     const duration = Math.min(options.duration ?? buffer.duration, buffer.duration - offset);
     const fade = Math.min(options.fade ?? .025, duration / 3);
@@ -109,6 +114,27 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     // About six seconds to settle: no abrupt wildlife or weather switch.
     beds.forEach((bed, name) => bed.gain.gain.setTargetAtTime(levels[name], context!.currentTime, 2));
   }
+  function moveSounds(force = false) {
+    if (!context || state !== 'playing') return;
+    const now = context.currentTime;
+    if (!force && now - lastMotionUpdate < 1 / 30) return;
+    lastMotionUpdate = now;
+    const metro = movers.get('metro'), boat = movers.get('boat');
+    if (metro) {
+      const edge = clamp((Math.abs(motion.metroPan) - .78) / .3);
+      const visibility = 1 - edge * edge * (3 - 2 * edge);
+      metro.panner.positionX.setTargetAtTime(clamp(motion.metroPan, -1.4, 1.4) * 3.2, now, .06);
+      // Fade away before the offscreen wrap, so it never sweeps across the
+      // listener when the visual train resets to the opposite edge.
+      metro.gain.gain.setTargetAtTime(motion.metroMoving ? .42 * visibility : 0, now, .18);
+    }
+    if (boat) {
+      boat.panner.positionX.setTargetAtTime(clamp(motion.boatPan, -1, 1) * 2.7, now, .055);
+      const movement = clamp(Math.abs(motion.boatSpeed) / 190);
+      const level = motion.boatDragging ? .12 + .7 * movement : .55 * movement;
+      boat.gain.gain.setTargetAtTime(level, now, .16);
+    }
+  }
   function handpan(note: string, at: number, strength: number, pan: number) {
     lastTake = lastTake === 1 ? 2 : 1;
     sample(`handpan/${note}-${lastTake}`, at, strength, pan, music);
@@ -125,6 +151,19 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
         if (sample(file, bed.next, 1, name === 'birds' ? -.18 : name === 'crickets' ? .18 : 0, bed.gain, { fade: overlap, ambience: true })) {
           bed.next += buffer.duration - overlap;
         }
+      }
+    });
+    moveSounds();
+    movers.forEach((mover, name) => {
+      const file = name === 'metro' ? 'metro-roll' : 'ambience-water';
+      const buffer = buffers.get(file);
+      if (!buffer) return;
+      const offset = name === 'boat' ? Math.min(8, buffer.duration / 4) : 0;
+      const duration = buffer.duration - offset;
+      if (mover.next < now) mover.next = now + .04;
+      if (mover.next < now + .3) {
+        const fade = Math.min(2, duration / 5);
+        if (sample(file, mover.next, 1, 0, mover.gain, { offset, duration, fade, ambience: true })) mover.next += duration - fade;
       }
     });
     if (nextNote < now - .2) nextNote = now + .35;
@@ -167,9 +206,17 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       left.connect(blend); right.connect(blend); blend.connect(master);
       beds.set(name, { gain, next: 0 });
     }
+    for (const name of ['metro', 'boat'] as const) {
+      const gain = keep(context.createGain()); gain.gain.value = 0;
+      const panner = keep(spatialPanner(0, name === 'metro' ? .25 : -.5, name === 'metro' ? -1.7 : -.9));
+      // A single persistent emitter follows each object; dragging never
+      // restarts the recording or leaves water sounds at the previous position.
+      gain.connect(panner); panner.connect(effects);
+      movers.set(name, { gain, panner, next: 0 });
+    }
     mixBeds();
     const notes = ['A3', 'D4', 'F4', 'G4', 'A4', 'C5'];
-    const files = new Set([...Object.values(BED_FILES), ...Object.values(EFFECT_FILES), ...notes.flatMap(note => [1, 2].map(take => `handpan/${note}-${take}`))]);
+    const files = new Set(['metro-roll', ...Object.values(BED_FILES), ...Object.values(EFFECT_FILES), ...notes.flatMap(note => [1, 2].map(take => `handpan/${note}-${take}`))]);
     loading = Promise.all([...files].map(async file => {
       try {
         const response = await fetch(`/audio/${file}.mp3`, { signal: abort.signal });
@@ -194,7 +241,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
         if (context!.state !== 'running') { report('waiting'); return; }
         master.gain.cancelScheduledValues(context!.currentTime);
         master.gain.setTargetAtTime(.68, context!.currentTime, .7);
-        report('playing'); mixBeds();
+        report('playing'); mixBeds(); moveSounds(true);
         for (const item of pending.splice(0)) if (performance.now() - item.at < 1200) controller.play(item.type, item.pan, item.intensity);
         if (timer === undefined) { nextNote = context!.currentTime + .5; schedule(); timer = setInterval(schedule, 100); }
       } catch { report('unavailable'); }
@@ -240,7 +287,12 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       const musical = type === 'celestial' || type === 'gameStart';
       if (musical) strength *= .65;
       sample(EFFECT_FILES[type], now, strength, pan, musical ? music : effects, options);
-      if (type === 'boat') sample('ambience-water', now + .08, .3 * volume, pan, effects, { offset: 4, duration: 1.6, fade: .35 });
+    },
+    setMotion(value: SceneSoundMotion) {
+      if (destroyed) return;
+      motion = { metroPan: clamp(value.metroPan, -2, 2), metroMoving: value.metroMoving,
+        boatPan: clamp(value.boatPan, -1, 1), boatSpeed: clamp(value.boatSpeed, -2000, 2000), boatDragging: value.boatDragging };
+      moveSounds();
     },
     setRain(value: number) { rain = clamp(value); mixBeds(); },
     setFire(value: number) { fire = clamp(value); mixBeds(); },

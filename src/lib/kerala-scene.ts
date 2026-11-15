@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { SceneSoundMotion } from './soundscape';
 import { createRiverSurface, riverContains } from './river-surface';
 import { createMetroPassenger } from './metro-passenger';
 import { createVillageHouses } from './village-houses';
@@ -26,7 +27,7 @@ export type KeralaSceneController = {
   openBottle(): void;
 };
 
-type SceneOptions = { onSound?: (type: 'water' | 'boat' | 'palm' | 'birds', pan?: number, intensity?: number) => void; onBottleAvailable?: (available: boolean) => void; onBottleFound?: () => void; backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean, automatic?: boolean) => void; onCoconutSplash?: () => void; onPassengerFound?: () => void; onStormChange?: (intensity: number) => void; onSequencePhase?: (phase: string) => void; onReady?: (supported: boolean) => void };
+type SceneOptions = { onSoundMotion?: (motion: SceneSoundMotion) => void; onSound?: (type: 'water' | 'boat' | 'palm' | 'birds', pan?: number, intensity?: number) => void; onBottleAvailable?: (available: boolean) => void; onBottleFound?: () => void; backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean, automatic?: boolean) => void; onCoconutSplash?: () => void; onPassengerFound?: () => void; onStormChange?: (intensity: number) => void; onSequencePhase?: (phase: string) => void; onReady?: (supported: boolean) => void };
 type Lotus = { group: THREE.Group; x: number; y: number; born: number; phase: number };
 type Bird = { group: THREE.Group; left: THREE.Mesh; right: THREE.Mesh; born: number; origin: THREE.Vector3; direction: number; phase: number };
 
@@ -499,6 +500,12 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     viaduct.position.y = -95 - scroll * 14;
     train.position.y = -94 - scroll * 14;
     boat.position.set(boatX, boatY, 10);
+    options.onSoundMotion?.({
+      metroPan: train.position.x / Math.max(viewWidth / 2, 1),
+      metroMoving: !passenger.active && (!reducedMotion || trainBoost > 0),
+      boatPan: soundPan(boatX), boatSpeed: boatVelocityX,
+      boatDragging: pointer?.target === 'boat' && pointer.dragging,
+    });
     boat.rotation.z = boatRoll;
     luxuryBoat.lighting.position.copy(boat.position);
     luxuryBoat.update(time, night, reducedMotion);
@@ -569,6 +576,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     event.preventDefault();
     failed = true;
     cancelAnimationFrame(animationFrame);
+    options.onSoundMotion?.({ metroPan: 0, metroMoving: false, boatPan: soundPan(boatX), boatSpeed: 0, boatDragging: false });
     options.onReady?.(false);
   }
 

@@ -109,6 +109,7 @@ import DinoGame from '../components/DinoGame.astro';
   const scene = createKeralaScene(canvas, {
     backgroundUrl: '/images/kerala-backwaters-clean.png',
     onSound(type, pan, intensity) { soundscape.play(type, pan, intensity); },
+    onSoundMotion(motion) { soundscape.setMotion(motion); },
     moonElement: document.querySelector<HTMLButtonElement>('.celestial')!,
     onBottleAvailable(available) { bottleButton.hidden = !available; },
     onBottleFound() { soundscape.play('cork', -.2); bottleNote.open(); },
