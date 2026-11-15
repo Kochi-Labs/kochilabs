@@ -3,7 +3,6 @@ export const HEADLINE_INTERVAL = 8_000;
 /** Keep the coming-soon idiom natural in each language, rather than literal. */
 export const HEADLINE_LANGUAGES = [
   { lang: 'en', text: 'God’s own country is cooking something.', hint: 'Click to change language' },
-  { lang: 'ml', text: 'ദൈവത്തിന്റെ സ്വന്തം നാട്ടിൽ എന്തോ ഒരുങ്ങുന്നു.', hint: 'ഭാഷ മാറ്റാൻ ക്ലിക്ക് ചെയ്യുക' },
   { lang: 'es', text: 'Algo se está cocinando en la tierra de Dios.', hint: 'Haz clic para cambiar de idioma' },
   { lang: 'fr', text: 'Au pays de Dieu, quelque chose se prépare.', hint: 'Cliquez pour changer de langue' },
   { lang: 'de', text: 'In Gottes eigenem Land köchelt etwas.', hint: 'Klicken, um die Sprache zu wechseln' },

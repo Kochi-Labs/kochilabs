@@ -20,6 +20,7 @@ import DinoGame from '../components/DinoGame.astro';
     <canvas class="kerala-scene" tabindex="0" role="img" aria-label="Interactive Kerala backwaters. Click the water to make waves and float a lotus. Drag the houseboat, brush or shake the trees, and click a house to open its windows and light it inside. Tap the metro or scroll to explore. Press Enter to ripple the water."></canvas>
     <div class="scene-wash" aria-hidden="true"></div>
     <div class="night-wash" aria-hidden="true"></div>
+    <div class="storm-wash" aria-hidden="true"></div>
     <svg class="stars" viewBox="0 0 1000 500" preserveAspectRatio="none" aria-hidden="true">
       {[...Array(44)].map((_, i) => <circle cx={28 + ((i * 137) % 944)} cy={18 + ((i * 79) % 420)} r={i % 5 === 0 ? 1.7 : .85} opacity={.35 + (i % 4) * .18} />)}
     </svg>
@@ -70,8 +71,14 @@ import DinoGame from '../components/DinoGame.astro';
       }
       document.querySelector('#village-status')!.textContent = `${scene.houseLabels[index]}: ${open ? 'windows open, lights on, a villager walks toward the shore' : 'windows closed, lights off, the villager returns home'}.`;
     },
+    onStormChange(intensity) { document.body.style.setProperty('--storm', String(intensity)); },
+    onSequencePhase(phase) {
+      const status = document.querySelector('#village-status')!;
+      if (phase === 'rain') status.textContent = 'Rain sweeps over the metro, cooling the damaged carriages and extinguishing the fire.';
+      if (phase === 'cooled') status.textContent = 'The fire is out. Steam lifts from the scorched metro as the rain eases.';
+    },
     onPassengerFound() {
-      document.querySelector('#village-status')!.textContent = 'You found the last metro passenger: a dragon flies out and breathes fire over the other carriages.';
+      document.querySelector('#village-status')!.textContent = 'You found the last metro passenger: a dragon takes flight and ignites the metro. Rain will arrive to extinguish the flames.';
     },
     onCoconutSplash() {
       document.querySelector('#village-status')!.textContent = 'A coconut splashes into the backwaters and floats.';
@@ -146,7 +153,6 @@ import DinoGame from '../components/DinoGame.astro';
 
 <style is:global>
   @font-face { font-family: "Birthstone"; src: url("/fonts/Birthstone-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
-  @font-face { font-family: "RIT Rachana"; src: url("/fonts/RIT-Rachana-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
   @font-face { font-family: "Noto Serif Devanagari"; src: url("/fonts/NotoSerifDevanagari.ttf") format("truetype"); font-weight: 100 900; font-style: normal; font-display: swap; }
   :root { font-family: Arial, Helvetica, sans-serif; color: #000; background: #dceef8; color-scheme: light; font-synthesis: none; -webkit-font-smoothing: antialiased; }
   * { box-sizing: border-box; }
@@ -166,6 +172,7 @@ import DinoGame from '../components/DinoGame.astro';
   :global(body[data-scene="fallback"]) .village-controls { display: none; }
   .scene-wash { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(180deg, rgba(239,248,251,.10) 0%, rgba(239,248,251,.04) 48%, rgba(235,245,241,.02) 72%, rgba(235,245,241,.80) 89%, rgba(235,245,241,.94) 100%); }
   .scene-wash { transition: opacity .9s ease; }
+  .storm-wash { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(180deg, rgba(23,36,48,.56), rgba(52,70,80,.2)); opacity: var(--storm, 0); }
   .night-wash { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0; background: linear-gradient(180deg, transparent 50%, rgba(8,20,39,.1) 72%, rgba(8,20,39,.65) 100%); transition: opacity .9s ease; }
   .stars { position: fixed; inset: 0 0 auto; width: 100%; height: 51svh; z-index: 0; pointer-events: none; fill: #fff1cc; opacity: 0; transition: opacity 1.1s ease; }
   .celestial { position: fixed; top: 10svh; right: 18%; z-index: 2; width: clamp(76px, 8vw, 112px); aspect-ratio: 1; border: 0; padding: 0; border-radius: 50%; background: transparent; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
@@ -193,7 +200,6 @@ import DinoGame from '../components/DinoGame.astro';
   .headline-trigger:focus-visible { outline: none; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 8px; }
   .headline { flex: 1; min-height: 50svh; display: grid; place-items: center; padding-block: 70px; text-align: center; }
   h1 { margin: 0; font-family: "Birthstone", cursive; font-size: clamp(30px, 5.6vw, 78px); font-weight: 400; line-height: 1.4; letter-spacing: 0; max-width: 100%; white-space: normal; text-shadow: 0 1px 14px rgba(255,255,255,.6); }
-  .headline-trigger:lang(ml) { font-family: "RIT Rachana", serif; font-size: clamp(24px, 3.8vw, 54px); line-height: 1.5; }
   .headline-trigger:lang(hi) { font-family: "Noto Serif Devanagari", serif; font-size: clamp(23px, 3.7vw, 52px); line-height: 1.55; }
   @media (max-width: 480px) { main { width: calc(100% - 32px); padding-bottom: 24px; } }
   @media (max-height: 900px) and (min-aspect-ratio: 1/1) {

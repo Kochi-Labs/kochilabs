@@ -21,7 +21,7 @@ export type KeralaSceneController = {
   shakePalm(): void;
 };
 
-type SceneOptions = { backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean) => void; onCoconutSplash?: () => void; onPassengerFound?: () => void; onReady?: (supported: boolean) => void };
+type SceneOptions = { backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean) => void; onCoconutSplash?: () => void; onPassengerFound?: () => void; onStormChange?: (intensity: number) => void; onSequencePhase?: (phase: string) => void; onReady?: (supported: boolean) => void };
 type Lotus = { group: THREE.Group; x: number; y: number; born: number; phase: number };
 type Bird = { group: THREE.Group; left: THREE.Mesh; right: THREE.Mesh; born: number; origin: THREE.Vector3; direction: number; phase: number };
 
@@ -83,6 +83,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let viewWidth = 1600;
   let shortViewportOffset = 0;
   let trainBoost = 0;
+  let lastStorm = -1;
+  let lastPassengerPhase = 'idle';
   let boatX = 40;
   let boatTargetX = 40;
   let boatVelocityX = 0;
@@ -444,6 +446,12 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     scroll += (scrollTarget - scroll) * Math.min(1, dt * 5);
     village.update(dt, night, reducedMotion);
     passenger.update(dt, night, reducedMotion);
+    if (Math.abs(passenger.rain - lastStorm) > .012 || (passenger.rain === 0 && lastStorm !== 0)) {
+      lastStorm = passenger.rain; options.onStormChange?.(lastStorm);
+    }
+    if (passenger.phase !== lastPassengerPhase) {
+      lastPassengerPhase = passenger.phase; options.onSequencePhase?.(lastPassengerPhase);
+    }
     foliage.update(dt, time, night, reducedMotion);
     const waterY = -220 + scroll * 4;
     const leftHeight = sampleWaterHeight(boatX - 76, waterY, time, waves, !reducedMotion, background.position.y);
@@ -467,7 +475,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       train.position.x += (stageX - train.position.x) * (reducedMotion ? 1 : Math.min(1, dt * 3));
     } else if (!reducedMotion || trainBoost > 0) train.position.x += dt * (trainBoost > 0 ? 150 : 39);
     const trainBoundary = viewWidth / 2 + 160;
-    if (train.position.x > trainBoundary) train.position.x = -trainBoundary;
+    if (train.position.x > trainBoundary) { train.position.x = -trainBoundary; passenger.resetDamage(); }
     for (let i = waves.length - 1; i >= 0; i--) if (time - waves[i]!.born > WAVE_LIFETIME) waves.splice(i, 1);
   }
 
