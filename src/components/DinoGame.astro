@@ -92,9 +92,72 @@
         ctx.fillRect(x + cactusWidth / 2, y + cactusHeight * .44, cactusWidth / 2, 5);
       }
 
+      function drawScenery() {
+        if (!ctx) return;
+        ctx.strokeStyle = '#000000';
+        ctx.fillStyle = '#000000';
+        ctx.lineWidth = 1;
+        // Pixel clouds drift more slowly than the terrain.
+        for (let i = 0; i < 3; i++) {
+          const x = ((width * .18 + i * width * .4 - distance * .08) % (width + 80) + width + 80) % (width + 80) - 40;
+          const y = 20 + (i % 2) * 26;
+          ctx.beginPath();
+          ctx.moveTo(x, y + 12);
+          ctx.lineTo(x + 8, y + 12);
+          ctx.lineTo(x + 8, y + 6);
+          ctx.lineTo(x + 16, y + 6);
+          ctx.lineTo(x + 16, y);
+          ctx.lineTo(x + 30, y);
+          ctx.lineTo(x + 30, y + 6);
+          ctx.lineTo(x + 39, y + 6);
+          ctx.lineTo(x + 39, y + 12);
+          ctx.lineTo(x + 48, y + 12);
+          ctx.stroke();
+        }
+        // A crow crosses the sky; it is scenery, so jumping stays focused on cacti.
+        const crowX = ((width * .76 - distance * .24) % (width + 64) + width + 64) % (width + 64) - 32;
+        const crowY = 45;
+        const wingsUp = Math.floor(distance / 60) % 2 === 0;
+        const crow = wingsUp ? [
+          '        XX        ',
+          '        XXXX      ',
+          '         XXXX     ',
+          '   XXXX  XXXXX    ',
+          'XXXXXXXXXXXXXXX   ',
+          '   XXXXXXXXXXXXXXX',
+          '     XXXXXXXX  XXX',
+          '       XXXXX      ',
+        ] : [
+          '                  ',
+          '                  ',
+          '                  ',
+          '   XXXX           ',
+          'XXXXXXXXXXXXXXX   ',
+          '   XXXXXXXXXXXXXXX',
+          '     XXXXXXXX  XXX',
+          '       XXXXX      ',
+          '       XXXX       ',
+          '       XXX        ',
+          '        XX        ',
+        ];
+        crow.forEach((row, y) => {
+          for (let x = 0; x < row.length; x++) {
+            if (row[x] === 'X') ctx.fillRect(Math.round(crowX) + x * 2, crowY + y * 2, 2, 2);
+          }
+        });
+        ctx.beginPath();
+        ctx.moveTo(0, ground + .5);
+        ctx.lineTo(width, ground + .5);
+        ctx.stroke();
+        for (let i = 0; i < width / 58 + 2; i++) {
+          ctx.fillRect(i * 58 - (distance % 58), ground + 7 + (i % 3) * 3, i % 3 === 0 ? 8 : 3, 1);
+        }
+      }
+
       function draw() {
         if (!ctx) return;
         ctx.clearRect(0, 0, width, height);
+        drawScenery();
         if (mode === 'idle') {
           drawCactus(width - 112, 31, 21);
           drawCactus(width - 75, 22, 15);
