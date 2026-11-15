@@ -27,6 +27,6 @@ The production site is generated in `dist/` and can be deployed to a static host
 - `src/components/DinoGame.astro`: runner and controls.
 - `public/favicon.svg`: brand mark.
 
-Press Space anywhere on the page or tap the game to start or restart. Press Space, Arrow Up, or tap to jump. The pause icon or Escape pauses the game. The current score is shown above the game.
+Press Space anywhere on the page or tap the game to start or restart. Press Space, Arrow Up, or tap to jump. The pause icon or Escape pauses the game. A restart icon appears after a collision; Space and tapping the game also restart it. The current score is shown above the game.
 
 The signature heading uses the locally hosted Birthstone font from Google Fonts. Its SIL Open Font License is included in `public/fonts/OFL-Birthstone.txt`. The game includes scrolling ground, clouds, and an animated crow. Decorative steam appears above the headline and respects reduced-motion settings.

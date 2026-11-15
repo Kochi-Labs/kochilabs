@@ -7,6 +7,9 @@
   </div>
   <div class="runner-field">
     <canvas class="runner-canvas" width="1040" height="155" tabindex="0" aria-label="Dinosaur runner. Press Space or Up Arrow, or tap, to start and jump over cacti."></canvas>
+    <button class="runner-restart" type="button" data-restart aria-label="Restart game" hidden>
+      <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.8 7.5" /><path d="M4 4v6h6" /></svg>
+    </button>
     <p class="sr-only" data-status aria-live="polite">Press Space or tap the game to start.</p>
   </div>
 </section>
@@ -17,6 +20,7 @@
     const canvas = root.querySelector<HTMLCanvasElement>('canvas')!;
     const ctx = canvas.getContext('2d');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
+    const restartButton = root.querySelector<HTMLButtonElement>('[data-restart]')!;
     const scoreElement = root.querySelector<HTMLElement>('[data-score]')!;
     const status = root.querySelector<HTMLElement>('[data-status]')!;
     if (ctx) {
@@ -183,6 +187,7 @@
         mode = 'over';
         status.textContent = `Game over. ${score} points. Press Space or tap to restart.`;
         pauseButton.hidden = true;
+        restartButton.hidden = false;
       }
 
       function tick(now: number) {
@@ -228,6 +233,7 @@
         mode = 'running';
         status.textContent = '';
         pauseButton.hidden = false;
+        restartButton.hidden = true;
         previousTime = performance.now();
         cancelAnimationFrame(frame);
         frame = requestAnimationFrame(tick);
@@ -247,6 +253,7 @@
         pauseButton.hidden = true;
       }
 
+      restartButton.addEventListener('click', start);
       pauseButton.addEventListener('click', () => { pause(); canvas.focus({ preventScroll: true }); });
       canvas.addEventListener('pointerdown', (event) => {
         if (event.button !== 0) return;
@@ -286,7 +293,8 @@
   .runner-canvas { display: block; width: 100%; height: 155px; touch-action: manipulation; border: 0; outline: none; box-shadow: none; }
   .runner-canvas:focus, .runner-canvas:focus-visible { outline: none; border: 0; box-shadow: none; }
   [hidden] { display: none !important; }
-  .runner-pause { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border: 0; border-radius: 0; background: transparent; color: #000000; cursor: pointer; outline: none; }
-  .runner-pause:hover { opacity: .7; }
-  .runner-pause:focus-visible { filter: drop-shadow(0 0 7px #000000); }
+  .runner-pause, .runner-restart { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border: 0; border-radius: 0; background: transparent; color: #000000; cursor: pointer; outline: none; }
+  .runner-restart { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); }
+  .runner-pause:hover, .runner-restart:hover { opacity: .7; }
+  .runner-pause:focus-visible, .runner-restart:focus-visible { filter: drop-shadow(0 0 7px #000000); }
 </style>
