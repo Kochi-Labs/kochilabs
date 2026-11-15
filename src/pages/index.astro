@@ -17,7 +17,7 @@ import DinoGame from '../components/DinoGame.astro';
     <div class="landscape" aria-hidden="true">
       <img src="/images/kerala-backwaters-clean.png" alt="" fetchpriority="high" decoding="async" />
     </div>
-    <canvas class="kerala-scene" tabindex="0" role="img" aria-label="Interactive Kerala backwaters. Click the water to make waves and float a lotus. Drag the houseboat, brush or shake the trees, and click a house to open its windows and light it inside. Tap the metro or scroll to explore. Press Enter to ripple the water."></canvas>
+    <canvas class="kerala-scene" tabindex="0" role="img" aria-label="Interactive Kerala backwaters. Click the water to make waves and float a lotus. Drag the houseboat, brush or shake the trees, and click a house to open its windows and light it inside. Click the metro to start a rear-carriage fire and rain sequence, or scroll to explore. Press Enter to ripple the water."></canvas>
     <div class="scene-wash" aria-hidden="true"></div>
     <div class="night-wash" aria-hidden="true"></div>
     <div class="storm-wash" aria-hidden="true"></div>
@@ -74,11 +74,11 @@ import DinoGame from '../components/DinoGame.astro';
     onStormChange(intensity) { document.body.style.setProperty('--storm', String(intensity)); },
     onSequencePhase(phase) {
       const status = document.querySelector('#village-status')!;
-      if (phase === 'rain') status.textContent = 'Rain sweeps over the metro, cooling the damaged carriages and extinguishing the fire.';
+      if (phase === 'rain') status.textContent = 'Rain sweeps over the metro, cooling the damaged rear carriage and extinguishing the fire.';
       if (phase === 'cooled') status.textContent = 'The fire is out. Steam lifts from the scorched metro as the rain eases.';
     },
     onPassengerFound() {
-      document.querySelector('#village-status')!.textContent = 'You found the last metro passenger: a dragon takes flight and ignites the metro. Rain will arrive to extinguish the flames.';
+      document.querySelector('#village-status')!.textContent = 'The last metro carriage catches fire. Rain will arrive to extinguish it.';
     },
     onCoconutSplash() {
       document.querySelector('#village-status')!.textContent = 'A coconut splashes into the backwaters and floats.';

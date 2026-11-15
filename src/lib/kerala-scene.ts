@@ -3,7 +3,9 @@ import { createRiverSurface, riverContains } from './river-surface';
 import { createMetroPassenger } from './metro-passenger';
 import { createVillageHouses } from './village-houses';
 import { createLivingFoliage, foliageShaderUniforms, foliageShaderFunction } from './living-foliage';
-import { createHouseboat, createMetro, createViaduct, createLotus } from './scene-models';
+import { createLuxuryHouseboat } from './luxury-houseboat';
+import { createBoatWater } from './boat-water';
+import { createMetro, createViaduct, createLotus } from './scene-models';
 import { MAX_WAVES, WAVE_LIFETIME, sampleWaterHeight as sampleWaveHeight, springStep, type WaterImpulse } from './water-physics';
 
 // The restored surface displays 65% of the shared wave height.
@@ -133,33 +135,17 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   const train = createMetro();
   train.position.set(-220, -94, -10);
   scene.add(train);
-  const boat = createHouseboat();
+  const luxuryBoat = createLuxuryHouseboat();
+  const boat = luxuryBoat.group;
+  boat.traverse(o => { o.userData.luxuryBoat = true; });
   boat.position.set(boatX, boatY, 10);
+  boat.rotation.x = .18;
+  boat.rotation.y = -.16;
   scene.add(boat);
 
-  const reflection = boat.clone(true);
-  reflection.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    const copies = materials.map((material) => {
-      const copy = material.clone();
-      copy.transparent = true;
-      copy.opacity = .12;
-      copy.depthWrite = false;
-      copy.side = THREE.DoubleSide;
-      if ('color' in copy) (copy as THREE.MeshBasicMaterial).color.lerp(new THREE.Color('#507d75'), .55);
-      return copy;
-    });
-    object.material = Array.isArray(object.material) ? copies : copies[0]!;
-  });
-  reflection.scale.y = -.38;
-  reflection.position.set(boatX, boatY - 9, 2);
-  scene.add(reflection);
-
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: '#244c43', transparent: true, opacity: .12, depthWrite: false }));
-  shadow.scale.set(116, 9, 1);
-  shadow.position.set(boatX, -224, 3);
-  scene.add(shadow);
+  scene.add(luxuryBoat.lighting);
+  const boatWater = createBoatWater(renderer, scene, boat, luxuryBoat.lighting);
+  scene.add(boatWater.group);
   const waves: WaterImpulse[] = [];
   const lotuses: Lotus[] = [];
   const birds: Bird[] = [];
@@ -210,7 +196,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   const nightMaterials = new Map<THREE.MeshBasicMaterial, { day: THREE.Color; night: THREE.Color }>();
   const moonTint = new THREE.Color('#758bc4').multiplyScalar(.55);
   scene.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
+    if (!(object instanceof THREE.Mesh) || object.userData.luxuryBoat) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
       if (!(material instanceof THREE.MeshBasicMaterial) || nightMaterials.has(material)) continue;
@@ -339,7 +325,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function clampBoatX(x: number) {
-    const edge = Math.max(0, viewWidth / 2 - 115);
+    const edge = Math.max(0, viewWidth / 2 - 128);
     return THREE.MathUtils.clamp(x, -edge, edge);
   }
 
@@ -385,9 +371,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       canvas.style.cursor = 'grab';
     } else if (current.target === 'water' && tap) splashAt(event.clientX, event.clientY);
     else if (current.target === 'train' && tap) {
-      if (current.lastCarriage) {
-        if (passenger.tap()) options.onPassengerFound?.();
-      } else trainBoost = 3.5;
+      if (passenger.tap()) options.onPassengerFound?.();
     }
     else if (current.target === 'house' && tap && current.houseIndex !== null) toggleHouse(current.houseIndex);
     else if (current.target === 'foliage' && tap) {
@@ -489,10 +473,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     train.position.y = -94 - scroll * 14;
     boat.position.set(boatX, boatY, 10);
     boat.rotation.z = boatRoll;
-    reflection.position.set(boatX, -229 + scroll * 4 - (boatY + 220 - scroll * 4) * .3, 2);
-    reflection.rotation.z = -boatRoll * .6;
-    reflection.scale.x = 1 + Math.sin(time * 1.1) * (reducedMotion ? 0 : .008);
-    shadow.position.set(boatX, -224 + scroll * 4, 3);
+    luxuryBoat.lighting.position.copy(boat.position);
+    luxuryBoat.update(time, night, reducedMotion);
     backgroundMaterial.uniforms.uNight!.value = night;
     river.update({ time, waves, night, ambient: !reducedMotion, scroll, moon: celestialReflection });
     fireflies.visible = night > .005;
@@ -525,6 +507,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       bird.right.rotation.z = flap;
       (bird.left.material as THREE.MeshBasicMaterial).opacity = 1 - THREE.MathUtils.smoothstep(age, 5, 7);
     }
+    boatWater.update({ time, night, reducedMotion, surfaceOffset: background.position.y, waves, speed: boatVelocityX, waterY: -220 + scroll * 4 });
     renderer.render(scene, camera);
   }
 
@@ -618,6 +601,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       village.destroy();
       foliage.destroy();
       passenger.destroy();
+      boatWater.destroy();
+      luxuryBoat.destroy();
       disposeObject(scene);
       ownedTextures.forEach((owned) => owned.dispose());
       renderer.dispose();

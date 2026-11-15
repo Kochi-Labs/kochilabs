@@ -2,9 +2,6 @@ import * as THREE from 'three';
 
 export type MetroWeatherState = {
   time: number;
-  mouth: THREE.Vector3;
-  target: THREE.Vector3;
-  breath: number;
   burn: number;
   rain: number;
   steam: number;
@@ -39,27 +36,6 @@ void main(){
  float alpha=clamp(density*vPower,0.0,.96);
  if(alpha<.006)discard;
  gl_FragColor=vec4(color*(1.0+uNight*.15),alpha);
- #include <colorspace_fragment>
-}`;
-const breathFragment = `
-uniform float uTime,uStrength,uMotion,uNight;
-varying vec2 vUv;
-${noiseShader}
-void main(){
- float t=uTime*uMotion;vec2 uv=vUv;
- float billow=fbm(vec2(uv.x*8.0-t*3.8,uv.y*3.3));
- float fine=fbm(vec2(uv.x*18.0-t*7.0,uv.y*6.0)+billow*2.0);
- float center=uv.y-.5+(billow-.5)*.2;
- float edge=1.0-smoothstep(.08,.45+billow*.08,abs(center));
- float end=1.0-smoothstep(.72,1.0,uv.x+fine*.08);
- float start=smoothstep(0.0,.035,uv.x);
- float core=exp(-center*center*48.0)*(1.0-uv.x*.6);
- float heat=clamp(core*.8+fine*.32,0.0,1.0);
- vec3 color=mix(vec3(.68,.05,.009),vec3(1.0,.4,.035),heat);
- color=mix(color,vec3(1.0,.94,.65),pow(heat,3.0));
- float alpha=edge*end*start*(.45+fine*.55)*uStrength;
- if(alpha<.008)discard;
- gl_FragColor=vec4(color*(1.0+uNight*.2),alpha);
  #include <colorspace_fragment>
 }`;
 const puffVertex = `
@@ -97,7 +73,9 @@ void main(){
 }`;
 
 /** Procedural fire, smoke, rain, and steam. All buffers are allocated once. */
-export function createMetroWeatherEffects() {
+export function createMetroWeatherEffects(burningCarriageCenters: readonly number[] = [-101]) {
+  const suppliedCenters = burningCarriageCenters.filter(Number.isFinite);
+  const centers = suppliedCenters.length ? suppliedCenters : [-101];
   const group = new THREE.Group();
   group.name = 'Fire rain and steam';
   const geometries = new Set<THREE.BufferGeometry>();
@@ -120,9 +98,9 @@ export function createMetroWeatherEffects() {
     geometry.instanceCount=count;
     const seeds=new Float32Array(count),origins=new Float32Array(count*3);
     for(let i=0;i<count;i++){
-      const car=i%2,slot=Math.floor(i/2),half=count/2;
+      const car=i%centers.length,slot=Math.floor(i/centers.length),perCar=count/centers.length;
       seeds[i]=(i*.61803398875)%1;
-      origins.set([car*101-38+(slot/(half-1))*76,centerY,18+seeds[i]*4],i*3);
+      origins.set([centers[car]!-34+(slot/Math.max(1,perCar-1))*68,centerY,18+seeds[i]*4],i*3);
     }
     geometry.setAttribute('aSeed',new THREE.InstancedBufferAttribute(seeds,1));
     geometry.setAttribute('aOrigin',new THREE.InstancedBufferAttribute(origins,3));
@@ -134,7 +112,7 @@ uniform float uTime,uStrength,uMotion;
 varying vec2 vUv;varying float vSeed;varying float vPower;
 void main(){
  vUv=uv;vSeed=aSeed*41.0;
- float ignition=3.3+(aOrigin.x+38.0)/177.0*3.1;
+ float ignition=fract(aSeed*7.0)*.9;
  vPower=uStrength*smoothstep(ignition,ignition+.7,uTime);
  float sway=sin(uTime*3.0+aSeed*21.0)*uMotion;
  float height=(19.0+aSeed*26.0)*(.35+.65*uStrength);
@@ -145,21 +123,13 @@ void main(){
  p+=aOrigin;
  gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);
 }`,flameFragment);
-  const roofFire=new THREE.Mesh(instanced(28,27.5),roofMaterial);roofFire.name='Turbulent carriage flames';roofFire.frustumCulled=false;roofFire.renderOrder=5;group.add(roofFire);
+  const roofFire=new THREE.Mesh(instanced(14*centers.length,27.5),roofMaterial);roofFire.name='Turbulent carriage flames';roofFire.frustumCulled=false;roofFire.renderOrder=5;group.add(roofFire);
   const smokeMaterial=material(puffVertex,puffFragment,{uSteam:{value:0}});
-  const smoke=new THREE.Mesh(instanced(44,32),smokeMaterial);smoke.name='Rising soot';smoke.frustumCulled=false;smoke.renderOrder=4;group.add(smoke);
+  const smoke=new THREE.Mesh(instanced(22*centers.length,32),smokeMaterial);smoke.name='Rising soot';smoke.frustumCulled=false;smoke.renderOrder=4;group.add(smoke);
   const steamMaterial=material(puffVertex,puffFragment,{uSteam:{value:1}});
-  const steam=new THREE.Mesh(instanced(32,31),steamMaterial);steam.name='Rain cooling steam';steam.frustumCulled=false;steam.renderOrder=7;group.add(steam);
+  const steam=new THREE.Mesh(instanced(16*centers.length,31),steamMaterial);steam.name='Rain cooling steam';steam.frustumCulled=false;steam.renderOrder=7;group.add(steam);
 
-  const breathGeometry=new THREE.BufferGeometry();
-  const segments=36,breathPositions=new Float32Array((segments+1)*6),uvs=new Float32Array((segments+1)*4),indices:number[]=[];
-  for(let i=0;i<=segments;i++){uvs.set([i/segments,0,i/segments,1],i*4);if(i<segments){let a=i*2;indices.push(a,a+1,a+2,a+1,a+3,a+2);}}
-  breathGeometry.setAttribute('position',new THREE.BufferAttribute(breathPositions,3).setUsage(THREE.DynamicDrawUsage));
-  breathGeometry.setAttribute('uv',new THREE.BufferAttribute(uvs,2));breathGeometry.setIndex(indices);geometries.add(breathGeometry);
-  const breathMaterial=material('varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',breathFragment);
-  const breath=new THREE.Mesh(breathGeometry,breathMaterial);breath.name='Turbulent dragon breath';breath.frustumCulled=false;breath.renderOrder=6;group.add(breath);
-
-  const emberCount=64,emberPositions=new Float32Array(emberCount*3),emberSizes=new Float32Array(emberCount),emberSeeds=new Float32Array(emberCount);
+  const emberCount=32*centers.length,emberPositions=new Float32Array(emberCount*3),emberSizes=new Float32Array(emberCount),emberSeeds=new Float32Array(emberCount);
   for(let i=0;i<emberCount;i++){emberSeeds[i]=(i*.61803398875)%1;emberSizes[i]=1+emberSeeds[i]*2;}
   const emberGeometry=new THREE.BufferGeometry();geometries.add(emberGeometry);
   emberGeometry.setAttribute('position',new THREE.BufferAttribute(emberPositions,3).setUsage(THREE.DynamicDrawUsage));emberGeometry.setAttribute('aSize',new THREE.BufferAttribute(emberSizes,1));
@@ -172,12 +142,12 @@ void main(){
   const rainGeometry=new THREE.BufferGeometry();geometries.add(rainGeometry);rainGeometry.setAttribute('position',new THREE.BufferAttribute(rainPositions,3).setUsage(THREE.DynamicDrawUsage));
   const rainMaterial=new THREE.LineBasicMaterial({color:'#c2d9df',transparent:true,opacity:0,depthWrite:false});materials.add(rainMaterial);
   const rain=new THREE.LineSegments(rainGeometry,rainMaterial);rain.name='Slanting monsoon rain';rain.frustumCulled=false;rain.renderOrder=9;group.add(rain);
-  const splashCount=48,splashPositions=new Float32Array(splashCount*12);
+  const splashCount=24*centers.length,splashPositions=new Float32Array(splashCount*12);
   const splashGeometry=new THREE.BufferGeometry();geometries.add(splashGeometry);splashGeometry.setAttribute('position',new THREE.BufferAttribute(splashPositions,3).setUsage(THREE.DynamicDrawUsage));
   const splashMaterial=new THREE.LineBasicMaterial({color:'#d9e5e6',transparent:true,opacity:0,depthWrite:false});materials.add(splashMaterial);
   const splashes=new THREE.LineSegments(splashGeometry,splashMaterial);splashes.name='Rain hitting metro roof';splashes.frustumCulled=false;splashes.renderOrder=10;group.add(splashes);
   let destroyed=false;
-  const shaderMaterials=[roofMaterial,smokeMaterial,steamMaterial,breathMaterial,emberMaterial];
+  const shaderMaterials=[roofMaterial,smokeMaterial,steamMaterial,emberMaterial];
   return {
     group,
     update(state: MetroWeatherState){
@@ -188,26 +158,13 @@ void main(){
       roofMaterial.uniforms.uStrength!.value=fireStrength;
       smokeMaterial.uniforms.uStrength!.value=burn*(1-wet*.6);
       steamMaterial.uniforms.uStrength!.value=clamp(state.steam);
-      breathMaterial.uniforms.uStrength!.value=clamp(state.breath);
       emberMaterial.uniforms.uStrength!.value=fireStrength*(1-wet*.7);
-      roofFire.visible=fireStrength>.001;smoke.visible=burn>.001;steam.visible=state.steam>.001;breath.visible=state.breath>.001;embers.visible=fireStrength>.001;
+      roofFire.visible=fireStrength>.001;smoke.visible=burn>.001;steam.visible=state.steam>.001;embers.visible=fireStrength>.001;
       rain.visible=wet>.001;splashes.visible=wet>.001;
-      const dx=state.target.x-state.mouth.x,dy=state.target.y-state.mouth.y,length=Math.max(1,Math.hypot(dx,dy));
-      for(let i=0;i<=segments;i++){
-        const f=i/segments;
-        const wobble=Math.sin(f*22-t*8)*Math.sin(f*Math.PI)*3*motion;
-        const width=(1.5+Math.pow(f,.7)*17)*(.3+.7*clamp(state.breath));
-        for(let side=0;side<2;side++){
-          const offset=(side?1:-1)*width+wobble,j=(i*2+side)*3;
-          breathPositions[j]=state.mouth.x+dx*f-dy/length*offset;
-          breathPositions[j+1]=state.mouth.y+dy*f+dx/length*offset;
-          breathPositions[j+2]=THREE.MathUtils.lerp(state.mouth.z,state.target.z,f)+.4;
-        }
-      }
-      breathGeometry.attributes.position!.needsUpdate=true;
       for(let i=0;i<emberCount;i++){
         const seed=emberSeeds[i]!,age=(seed+t*.38*motion)%1,j=i*3;
-        emberPositions[j]=(i%2)*101-37+((i*13.17)%74)+age*18;
+        const center=centers[i%centers.length]!;
+        emberPositions[j]=center+Math.min(44,-37+((i*13.17)%74)+age*10);
         emberPositions[j+1]=29+age*(25+seed*40)-age*age*17;
         emberPositions[j+2]=24+seed*6;
       }
@@ -221,7 +178,7 @@ void main(){
       }
       rainGeometry.attributes.position!.needsUpdate=true;
       for(let i=0;i<splashCount;i++){
-        const age=((i*.618)+t*1.8*motion)%1,x=(i%2)*101-41+((i*17.13)%82),rise=Math.sin(age*Math.PI)*3,spread=age*3,j=i*12;
+        const age=((i*.618)+t*1.8*motion)%1,x=centers[i%centers.length]!-39+((i*17.13)%78),rise=Math.sin(age*Math.PI)*3,spread=age*3,j=i*12;
         splashPositions[j]=x-spread;splashPositions[j+1]=29+rise;splashPositions[j+2]=26;
         splashPositions[j+3]=x-spread-1;splashPositions[j+4]=30+rise;splashPositions[j+5]=26;
         splashPositions[j+6]=x+spread;splashPositions[j+7]=29+rise;splashPositions[j+8]=26;

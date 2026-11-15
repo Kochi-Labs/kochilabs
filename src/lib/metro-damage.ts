@@ -6,7 +6,7 @@ export function createMetroDamage(cars: THREE.Group[]) {
   const overlays: { mesh: THREE.Mesh; shader: THREE.ShaderMaterial; cracks: THREE.LineSegments; crackMaterial: THREE.LineBasicMaterial }[] = [];
   const replaced: { mesh: THREE.Mesh; original: THREE.Material | THREE.Material[]; copies: THREE.MeshBasicMaterial[]; day: THREE.Color[]; night: THREE.Color[]; car: number }[] = [];
   const warped: { mesh: THREE.Mesh; original: THREE.BufferGeometry; geometry: THREE.BufferGeometry; source: Float32Array; lastDamage: number; car: number }[] = [];
-  const burns = [0, 0];
+  const burns = cars.map(() => 0);
   const charColor = new THREE.Color('#252625'), moon = new THREE.Color('#404c6c'), warm = new THREE.Color('#ff9c43');
   const vertexShader = `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
   const fragmentShader = `
@@ -65,7 +65,7 @@ export function createMetroDamage(cars: THREE.Group[]) {
   let destroyed=false;
   function update(damage:number,heat:number,wet:number,night:number,sweep=1) {
     if(destroyed)return;
-    for(let i=0;i<2;i++) burns[i]=Math.max(burns[i]!,THREE.MathUtils.clamp(damage*(i===0?1:sweep),0,1));
+    for(let i=0;i<burns.length;i++) burns[i]=Math.max(burns[i]!,THREE.MathUtils.clamp(damage*(i===0?1:sweep),0,1));
     replaced.forEach(entry=>entry.copies.forEach((m,i)=>{
       m.color.copy(entry.day[i]!);
       m.color.lerp(entry.night[i]!,night);
@@ -86,7 +86,7 @@ export function createMetroDamage(cars: THREE.Group[]) {
     });
     overlays.forEach((o,i)=>{o.mesh.visible=burns[i]!>.002;o.shader.uniforms.uDamage!.value=burns[i];o.shader.uniforms.uWet!.value=wet;o.shader.uniforms.uHeat!.value=heat;o.crackMaterial.opacity=burns[i]!*.7;});
   }
-  return {group:root,update,get damage(){return Math.max(...burns);},reset(){burns.fill(0);update(0,0,0,0);},destroy(){
+  return {group:root,update,get damage(){return burns.length ? Math.max(...burns) : 0;},reset(){burns.fill(0);update(0,0,0,0);},destroy(){
     if(destroyed)return;destroyed=true;root.removeFromParent();
     replaced.forEach(e=>{e.mesh.material=e.original;e.copies.forEach(m=>m.dispose());});
     warped.forEach(e=>{e.mesh.geometry=e.original;e.geometry.dispose();});

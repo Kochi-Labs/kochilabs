@@ -44,7 +44,7 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 
 - Click the water to send out waves and float a lotus. The boat responds to wave heights sampled beneath its bow and stern.
 - Drag the houseboat horizontally; release it to let its momentum settle. Tap it for a gentle rocking motion.
-- The illustrated metro runs across its viaduct. Tap it for a temporary speed boost.
+- The illustrated metro runs across its viaduct. Click any carriage once to ignite the last (leftmost) carriage; the other two remain intact. Rain arrives, extinguishes the fire, and leaves steam and rear-carriage damage.
 - The headline cycles through English, Spanish, French, German, and Hindi every eight seconds. Click to change immediately. Hover, keyboard focus, and hidden tabs pause the cycle; reduced-motion mode uses manual switching. Hindi uses locally bundled Noto Serif Devanagari, with its SIL Open Font License in `public/fonts/`.
 - Scroll to shift the landscape, bridge, and boat at different depths.
 - Focus the scene and press Enter to make a splash. Space still starts the dinosaur game.
@@ -54,4 +54,6 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 
 The background and its boat-free edit were created with built-in ImageGen. The image assets and exact generation prompts are stored in `public/images/`. The original painting is preserved; `kerala-backwaters-clean.png` is the background plate for the animated scene.
 
-The restored rolling wave style drives the boat’s five hull samples and coconut slope samples. Click the rear (leftmost) metro carriage three times: a lit 3D dragon emerges, grows, and breathes turbulent fire across the other two carriages. The roofs warp, paint scorches, and windows crack. Rain begins after ignition and gradually extinguishes the flames; soot gives way to steam and the wet, damaged train resumes. Damage remains until that train leaves the screen. Three new clicks replay the sequence. Reduced motion presents a stationary dragon with softer fire and rain effects. This is a real-time visual simulation, not a photorealistic fluid or structural simulation.
+The restored rolling wave style drives the boat’s five hull samples and coconut slope samples. The luxury houseboat has a polished teak hull, panoramic glass lounge with furniture, woven canopy, brass rails, an upper sun terrace, and warm night lighting. A separate render target captures the actual boat and lighting for a water reflection distorted by the shared wave field; soft contact shading and a movement wake anchor it to the river. `luxury-houseboat.ts` owns its model and lights; `boat-water.ts` owns its reflection and water contact.
+
+Click any metro carriage once to ignite only the last carriage. Rain arrives after five seconds and extinguishes its flames by twelve seconds, followed by cooling steam. Scorch marks, warped panels, and cracked windows remain until the train leaves the screen. Another click after the sequence replays it. The dragon is removed. This is a real-time visual simulation, not a photorealistic fluid or structural simulation.
