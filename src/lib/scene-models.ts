@@ -170,143 +170,82 @@ export function createHouseboat(): THREE.Group {
 
 export function createMetro(): THREE.Group {
   const train = new THREE.Group();
-  train.name = 'Turquoise and cobalt Kochi inspired metro';
-  const enamel = (color: string, metalness = .22) => new THREE.MeshStandardMaterial({ color, metalness, roughness: .29 });
-  const ivory = enamel('#edf1e9', .28);
-  const teal = enamel('#00a9ac');
-  const cobalt = enamel('#1268ab');
-  const orange = enamel('#f2a532', .16);
-  const silver = enamel('#b9c7cb', .53);
-  const rubber = new THREE.MeshStandardMaterial({ color: '#253a43', roughness: .91 });
-  const trim = new THREE.MeshStandardMaterial({ color: '#49626b', roughness: .58, metalness: .4 });
-  const glass = paint('#174a62');
+  train.name = 'Kochi inspired metro';
+  const cream = paint(palette.cream);
+  const teal = paint(palette.aqua);
+  const glass = paint('#345e63');
   glass.userData.nightGlow = true;
-  glass.onBeforeCompile = shader => {
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vMetroGlass;');
-    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvMetroGlass=uv;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vMetroGlass;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float glassHeight=clamp((vMetroGlass.y-16.0)/8.8,0.0,1.0);
-      float reflection=smoothstep(.72,.9,glassHeight)*.20;
-      float streak=1.0-smoothstep(.0,.045,abs(fract(vMetroGlass.x/11.4)*.19+glassHeight-.64));
-      diffuseColor.rgb*=.73+.36*glassHeight;
-      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.74,.91,.94),reflection+streak*.10);
-    `);
-  };
-  glass.customProgramCacheKey = () => 'metro-reflective-glazing-v1';
-  const redLamp = paint('#e96e4d');
-  const whiteLamp = paint('#fff3b4');
+  const trim = paint('#6e8b80');
+  const gold = paint(palette.ochre);
+  const undercarriage = paint('#526260');
   for (let index = 0; index < 3; index++) {
     const car = new THREE.Group();
-    car.name = `Metro carriage ${index + 1}`;
     car.position.x = (index - 1) * 101;
     train.add(car);
-    extrusion(car, roundedRect(-48, 5, 96, 23, 5), 20, -10, ivory);
-    extrusion(car, roundedRect(-47.7, 5.3, 95.4, 8.9, 3.5), .55, 10.1, teal);
-    box(car, [86, 2.1, .6], [0, 7.3, 10.7], cobalt);
-    box(car, [87, 1.15, .65], [0, 14.1, 10.7], orange);
-    box(car, [87, .38, .55], [0, 15.1, 10.7], silver);
-    box(car, [81, 1.8, 14], [0, 28.1, -.6], silver);
-    box(car, [84, 2.5, 15], [0, 4.2, -.5], rubber);
-    // Roof equipment and louvres keep their scale below the existing fire origin.
-    for (const x of [-23, 23]) {
-      box(car, [17, 2.2, 10], [x, 30, -.5], trim);
-      box(car, [15.5, .6, 9], [x, 31.35, -.5], silver);
-      for (let j = -5; j <= 5; j += 2) box(car, [.7, .32, 7.5], [x + j, 31.75, -.5], trim);
-      box(car, [17, 2.8, 15], [x, 3.6, 0], trim);
-      for (const dx of [-5, 5]) {
-        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 2.3, 16), rubber);
-        wheel.rotation.x = Math.PI / 2; wheel.position.set(x + dx, 2.5, 9.5); car.add(wheel);
-        const hub = new THREE.Mesh(new THREE.CircleGeometry(1.25, 12), silver);
-        hub.position.set(x + dx, 2.5, 10.75); car.add(hub);
+    extrusion(car, roundedRect(-48, 5, 96, 23, 5), 20, -10, cream);
+    extrusion(car, roundedRect(-47.8, 5, 95.6, 8.5, 3.2), .6, 10.1, teal);
+    box(car, [87, 1.1, .8], [0, 13.5, 10.5], gold);
+    box(car, [80, 2, 13], [0, 28, -.5], paint('#c3d0bd'));
+    box(car, [84, 2.8, 15], [0, 4.3, -.5], undercarriage);
+    for (const x of [-27, 27]) {
+      box(car, [16, 3.5, 15], [x, 3, 0], undercarriage);
+      for (const offset of [-4.8, 4.8]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 2, 10), undercarriage);
+        wheel.rotation.x = Math.PI / 2;
+        wheel.position.set(x + offset, 2.5, 9.5);
+        car.add(wheel);
       }
     }
     for (const x of [-33, -18, 18, 33]) {
-      extrusion(car, roundedRect(x - 6, 15.65, 12, 9.4, 1.35), .35, 10.3, rubber);
-      extrusion(car, roundedRect(x - 5.55, 16.05, 11.1, 8.5, 1.1), .45, 10.75, glass);
-      box(car, [9.2, .34, .2], [x, 25.25, 11.1], silver);
-      // Recessed body panel seams, clearly quieter than the livery.
-      box(car, [.23, 6.8, .15], [x + 7.2, 9.7, 10.85], trim);
+      extrusion(car, roundedRect(x - 5.7, 16, 11.4, 8.8, 1.2), .65, 10.2, glass);
+      box(car, [7.8, .7, .3], [x - .4, 23.5, 11], paint('#8bb7b0'));
     }
-    extrusion(car, roundedRect(-7.5, 7.2, 15, 18.1, .7), .4, 10.8, trim);
-    extrusion(car, roundedRect(-6.8, 7.8, 13.6, 16.8, .5), .4, 11.3, silver);
-    box(car, [.55, 16.8, .45], [0, 16.2, 11.8], rubber);
-    for (const x of [-3.45, 3.45]) {
-      extrusion(car, roundedRect(x - 2.35, 16.2, 4.7, 7.8, .65), .3, 11.65, glass);
-      box(car, [.34, 2.5, .3], [x < 0 ? -1.1 : 1.1, 13, 12], rubber);
-    }
-    box(car, [13.8, .8, .55], [0, 7.3, 11.8], orange);
+    extrusion(car, roundedRect(-7.5, 7.2, 15, 18.1, .6), .4, 10.8, trim);
+    extrusion(car, roundedRect(-6.7, 7.8, 13.4, 16.8, .3), .4, 11.3, paint('#d4e0cc'));
+    box(car, [.65, 16.8, .5], [0, 16.2, 12], trim);
+    box(car, [4.8, 7.8, .5], [-3.5, 19.7, 12], glass);
+    box(car, [4.8, 7.8, .5], [3.5, 19.7, 12], glass);
     if (index !== 1) {
       const outer = index === 0 ? -1 : 1;
-      extrusion(car, roundedRect(outer < 0 ? -47.2 : 40.1, 15.7, 7.1, 9.3, 1.8), .6, 10.65, glass);
-      box(car, [3.8, 2.1, .5], [outer * 44, 10.6, 11.4], trim);
-      box(car, [2.9, 1.25, .65], [outer * 44, 10.6, 11.8], index === 0 ? redLamp : whiteLamp);
-      box(car, [2.2, .3, .65], [outer * 43.5, 20, 11.6], trim);
+      extrusion(car, roundedRect(outer < 0 ? -47 : 40.2, 15.8, 6.8, 8.5, 1.7), .9, 10.4, glass);
+      box(car, [3.6, 1.8, .7], [outer * 44, 10.5, 11.4], paint('#f8eb9d'));
     }
-    const emblem = new THREE.Mesh(new THREE.CircleGeometry(1.1, 16), ivory);
-    emblem.position.set(-31, 10.4, 11.3); car.add(emblem);
-    box(car, [7, .55, .3], [-25.5, 10.4, 11.2], ivory);
+    // Tiny wayfinding stripe and abstract metro emblem, without fabricated text.
+    box(car, [7, .7, .6], [-25, 9.3, 11.1], cream);
+    const emblem = new THREE.Mesh(new THREE.CircleGeometry(1.1, 12), cream);
+    emblem.position.set(-31, 9.3, 11.5);
+    car.add(emblem);
   }
   for (const x of [-50.5, 50.5]) {
-    box(train, [6, 17.5, 15], [x, 15.5, 0], rubber);
-    for (const dx of [-1.7, 0, 1.7]) box(train, [.55, 16.5, .9], [x + dx, 15.5, 8.1], trim);
-    box(train, [5, 1.1, 15], [x, 25, 0], silver);
+    box(train, [6, 17.5, 15], [x, 15.5, 0], paint('#6f7b70'));
+    for (const dx of [-1.6, 0, 1.6]) box(train, [.55, 16.5, .8], [x + dx, 15.5, 8.1], paint('#9da897'));
   }
   return train;
 }
 
 export function createViaduct(): THREE.Group {
   const bridge = new THREE.Group();
-  bridge.name = 'Detailed concrete metro viaduct';
-  const concrete = new THREE.MeshStandardMaterial({ color: '#dad9cb', roughness: .92 });
-  concrete.onBeforeCompile = shader => {
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vConcretePoint;');
-    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvConcretePoint=position;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vConcretePoint;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float grit=fract(sin(dot(floor(vConcretePoint*3.0),vec3(17.1,43.7,12.9)))*43758.5453);
-      float weather=sin(vConcretePoint.x*.19+sin(vConcretePoint.y*.28))*.025;
-      diffuseColor.rgb*=.96+grit*.055+weather;
-    `);
-  };
-  concrete.customProgramCacheKey = () => 'cast-concrete-micrograin-v1';
-  const edge = new THREE.MeshStandardMaterial({ color: '#f1ecdb', roughness: .84 });
-  const recess = new THREE.MeshStandardMaterial({ color: '#8c9a97', roughness: .94 });
-  const steel = new THREE.MeshStandardMaterial({ color: '#677b80', roughness: .44, metalness: .52 });
-  const teal = new THREE.MeshStandardMaterial({ color: '#29a39b', roughness: .54 });
-  const ochre = new THREE.MeshStandardMaterial({ color: '#e6b454', roughness: .69 });
-  const bearing = new THREE.MeshStandardMaterial({ color: '#465a59', roughness: .91 });
-  box(bridge, [2000, 8.5, 30], [0, -4.3, 0], concrete);
-  box(bridge, [2000, 1.8, 3.4], [0, -.2, 16], edge);
-  box(bridge, [2000, 2.8, .65], [0, -3.5, 15.4], teal);
-  box(bridge, [2000, .65, .7], [0, -5.5, 15.5], ochre);
-  box(bridge, [2000, 1.3, 2], [0, 1.3, 8], steel);
-  box(bridge, [2000, 1.3, 2], [0, 1.3, -8], steel);
-  box(bridge, [2000, 1.1, .8], [0, -8.9, 15.3], recess);
-  // Segment joints and drainage mouths make the long beam read as construction.
-  for (let x = -960; x <= 960; x += 80) {
-    box(bridge, [.65, 8.1, .8], [x, -4.4, 15.65], recess);
-    box(bridge, [2.4, 1.4, .8], [x + 30, -6.8, 15.7], bearing);
-  }
+  bridge.name = 'Elevated metro viaduct';
+  const concrete = paint('#d4ceb4');
+  const shade = paint('#a5b29d');
+  const sunlit = paint('#ede4c5');
+  box(bridge, [2000, 8, 30], [0, -4, 0], concrete);
+  box(bridge, [2000, 2, 3], [0, -1, 16], sunlit);
+  box(bridge, [2000, 1.3, 2], [0, 1, 8], paint('#6f8075'));
+  box(bridge, [2000, 1.3, 2], [0, 1, -8], paint('#829083'));
+  box(bridge, [2000, 1.2, .8], [0, -8.2, 15.3], shade);
   for (let x = -960; x <= 960; x += 160) {
-    const pier = new THREE.Shape();
-    pier.moveTo(-6.3, -18); pier.lineTo(6.3, -18); pier.lineTo(8.3, -66.5);
-    pier.lineTo(-8.3, -66.5); pier.closePath();
-    const shaft = extrusion(bridge, pier, 18, -10, concrete); shaft.position.x = x;
-    // Narrow formwork grooves and a front bevel reveal the shaft's depth.
-    box(bridge, [1.1, 46, .65], [x + 5.1, -42, 8.3], edge);
-    box(bridge, [.6, 46, .65], [x - 4.4, -42, 8.4], recess);
-    for (const y of [-29, -43, -57]) box(bridge, [13.2, .3, .5], [x, y, 8.5], recess);
+    box(bridge, [13, 55, 17], [x, -42.5, -1], concrete);
+    box(bridge, [3.5, 55, 1], [x + 4.7, -42.5, 8], shade);
     const capital = new THREE.Shape();
-    capital.moveTo(-21, -11); capital.lineTo(21, -11);
-    capital.lineTo(7.5, -21); capital.lineTo(-7.5, -21); capital.closePath();
-    const cap = extrusion(bridge, capital, 23, -12, concrete); cap.position.x = x;
-    for (const dx of [-13, 13]) box(bridge, [8, 2.1, 20], [x + dx, -9.7, -.5], bearing);
-    box(bridge, [23, 3.4, 24], [x, -68.3, -1], recess);
-    box(bridge, [18.4, 2, 19.5], [x, -65.5, -1], concrete);
-    // Restrained painted bands keep the supports vibrant without losing concrete.
-    box(bridge, [15.3, 6.5, .7], [x, -58.5, 8.8], teal);
-    box(bridge, [15.7, 1.1, .8], [x, -62.4, 8.9], ochre);
+    capital.moveTo(-20, -8);
+    capital.lineTo(20, -8);
+    capital.lineTo(7, -19);
+    capital.lineTo(-7, -19);
+    capital.closePath();
+    const cap = extrusion(bridge, capital, 21, -11, concrete);
+    cap.position.x = x;
+    box(bridge, [23, 3, 23], [x, -68.5, -1], shade);
   }
   return bridge;
 }
