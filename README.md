@@ -1,6 +1,6 @@
 # Kochi Labs
 
-A minimal Astro holding page: “Kochi Labs is cooking something.” Includes an original Chrome-inspired dinosaur runner with keyboard and touch controls. The page uses a vibrant yellow background and black text and game graphics, with only the headline and game score visible.
+A minimal Astro holding page: “Kochi Labs is cooking something.” Includes an original Chrome-inspired dinosaur runner with keyboard and touch controls. The page uses a pale blue background and black text and game graphics, with only the headline and game score visible.
 
 ## Development
 
@@ -29,4 +29,4 @@ The production site is generated in `dist/` and can be deployed to a static host
 
 Use the play icon to start, then Space, Arrow Up, or tap to jump. The pause icon or Escape pauses the game. The current score is shown above the game.
 
-The signature heading uses the locally hosted La Belle Aurore font from Google Fonts. Its SIL Open Font License is included in `public/fonts/OFL-LaBelleAurore.txt`. The game includes scrolling ground, clouds, and an animated crow.
+The signature heading uses the locally hosted Birthstone font from Google Fonts. Its SIL Open Font License is included in `public/fonts/OFL-Birthstone.txt`. The game includes scrolling ground, clouds, and an animated crow.
