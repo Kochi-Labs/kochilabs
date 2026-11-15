@@ -1,0 +1,346 @@
+<section class="runner" aria-label="Dinosaur runner game" data-dino-game>
+  <div class="runner-heading">
+    <button class="runner-pause" type="button" data-pause aria-label="Pause game" hidden>
+      <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true"><path d="M2 2h3v12H2zM9 2h3v12H9z" /></svg>
+    </button>
+    <button class="runner-score" type="button" data-score aria-label="Current score: 0. Show best score." aria-pressed="false" title="Show best score">00000</button>
+  </div>
+  <div class="runner-field">
+    <canvas class="runner-canvas" width="1040" height="155" tabindex="0" aria-label="Dinosaur runner. Press Space or Up Arrow, or tap, to start and jump over cacti."></canvas>
+    <button class="runner-restart" type="button" data-restart aria-label="Restart game" hidden>
+      <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.8 7.5" /><path d="M4 4v6h6" /></svg>
+    </button>
+    <p class="sr-only" data-status aria-live="polite">Press Space or tap the game to start.</p>
+  </div>
+</section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-dino-game]');
+  if (root) {
+    const canvas = root.querySelector<HTMLCanvasElement>('canvas')!;
+    const ctx = canvas.getContext('2d');
+    const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
+    const restartButton = root.querySelector<HTMLButtonElement>('[data-restart]')!;
+    const scoreElement = root.querySelector<HTMLButtonElement>('[data-score]')!;
+    const status = root.querySelector<HTMLElement>('[data-status]')!;
+    if (ctx) {
+      type Obstacle = { x: number; width: number; height: number };
+      let width = 1040;
+      const height = 155;
+      const ground = 128;
+      const dinosaurX = 34;
+      let mode: 'idle' | 'running' | 'over' | 'paused' = 'idle';
+      let jumpHeight = 0;
+      let velocity = 0;
+      let distance = 0;
+      let score = 0;
+      let best = 0;
+      let showingBest = false;
+      let obstacles: Obstacle[] = [];
+      let nextObstacle = 1.5;
+      let previousTime = 0;
+      let frame = 0;
+      const formatted = (n: number) => Math.min(Math.max(0, Math.floor(n)), 99999).toString().padStart(5, '0');
+      try {
+        const savedBest = Number(localStorage.getItem('kochi-labs-dino-best'));
+        if (Number.isFinite(savedBest) && savedBest > 0) best = Math.floor(savedBest);
+      } catch { /* The game remains playable when storage is unavailable. */ }
+
+      function updateScore() {
+        const value = showingBest ? best : score;
+        scoreElement.textContent = formatted(value);
+        scoreElement.setAttribute('aria-pressed', String(showingBest));
+        scoreElement.setAttribute('aria-label', `${showingBest ? 'Best' : 'Current'} score: ${value}. Show ${showingBest ? 'current' : 'best'} score.`);
+        scoreElement.title = `Show ${showingBest ? 'current' : 'best'} score`;
+      }
+
+      const dinosaur = [
+        '          XXXXXXXX  ',
+        '         XXXXXXXXXX ',
+        '         XXX XXXXXX ',
+        '         XXXXXXXXXX ',
+        '         XXXXXXXXXX ',
+        '         XXXXX      ',
+        '         XXXXXXXX   ',
+        'X       XXXXXX      ',
+        'XX     XXXXXXX      ',
+        'XXX   XXXXXXXXXX    ',
+        'XXXX XXXXXXXXX X    ',
+        'XXXXXXXXXXXXXX      ',
+        ' XXXXXXXXXXXXX      ',
+        '  XXXXXXXXXXX       ',
+        '   XXXXXXXXX        ',
+        '    XXXXXXX         ',
+        '     XX XXX         ',
+      ];
+
+      function drawDinosaur() {
+        if (!ctx) return;
+        const x = dinosaurX;
+        const y = ground - 42 - jumpHeight;
+        ctx.fillStyle = '#000000';
+        dinosaur.forEach((row, rowIndex) => {
+          for (let col = 0; col < row.length; col++) {
+            if (row[col] === 'X') ctx.fillRect(x + col * 2, y + rowIndex * 2, 2, 2);
+          }
+        });
+        const runningStep = mode === 'running' && jumpHeight === 0 && Math.floor(distance / 36) % 2 === 0;
+        ctx.fillRect(x + 10, y + 34, 4, runningStep ? 4 : 8);
+        ctx.fillRect(x + 10, y + (runningStep ? 36 : 40), 8, 2);
+        ctx.fillRect(x + 20, y + 34, 4, runningStep ? 8 : 4);
+        ctx.fillRect(x + 20, y + (runningStep ? 40 : 36), 8, 2);
+      }
+
+      function drawCactus(x: number, cactusHeight: number, cactusWidth: number) {
+        if (!ctx) return;
+        const y = ground - cactusHeight;
+        const stem = Math.max(5, cactusWidth * .28);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x + cactusWidth / 2 - stem / 2, y, stem, cactusHeight);
+        ctx.fillRect(x, y + 9, 5, cactusHeight * .43);
+        ctx.fillRect(x, y + cactusHeight * .54, cactusWidth / 2, 5);
+        ctx.fillRect(x + cactusWidth - 5, y + 4, 5, cactusHeight * .43);
+        ctx.fillRect(x + cactusWidth / 2, y + cactusHeight * .44, cactusWidth / 2, 5);
+      }
+
+      function drawScenery() {
+        if (!ctx) return;
+        ctx.strokeStyle = '#000000';
+        ctx.fillStyle = '#000000';
+        ctx.lineWidth = 1;
+        // Pixel clouds drift more slowly than the terrain.
+        for (let i = 0; i < 3; i++) {
+          const x = ((width * .18 + i * width * .4 - distance * .08) % (width + 80) + width + 80) % (width + 80) - 40;
+          const y = 20 + (i % 2) * 26;
+          ctx.beginPath();
+          ctx.moveTo(x, y + 12);
+          ctx.lineTo(x + 8, y + 12);
+          ctx.lineTo(x + 8, y + 6);
+          ctx.lineTo(x + 16, y + 6);
+          ctx.lineTo(x + 16, y);
+          ctx.lineTo(x + 30, y);
+          ctx.lineTo(x + 30, y + 6);
+          ctx.lineTo(x + 39, y + 6);
+          ctx.lineTo(x + 39, y + 12);
+          ctx.lineTo(x + 48, y + 12);
+          ctx.stroke();
+        }
+        // A crow crosses the sky; it is scenery, so jumping stays focused on cacti.
+        const crowX = ((width * .76 - distance * .24) % (width + 64) + width + 64) % (width + 64) - 32;
+        const crowY = 43;
+        ctx.save();
+        ctx.translate(Math.round(crowX), crowY);
+        // Side-on silhouette: pointed beak, round head, long tail and feathered wing.
+        ctx.beginPath();
+        ctx.moveTo(7, 8);
+        ctx.lineTo(0, 11);
+        ctx.lineTo(8, 13);
+        ctx.bezierCurveTo(9, 20, 18, 23, 29, 20);
+        ctx.lineTo(43, 24);
+        ctx.lineTo(39, 18);
+        ctx.lineTo(45, 16);
+        ctx.lineTo(31, 12);
+        ctx.bezierCurveTo(25, 8, 20, 9, 16, 9);
+        ctx.bezierCurveTo(16, 2, 7, 2, 7, 8);
+        ctx.fill();
+        const wingLift = Math.sin(distance / 44);
+        ctx.beginPath();
+        ctx.moveTo(19, 15);
+        if (wingLift >= 0) {
+          ctx.lineTo(18, -8 - wingLift * 9);
+          ctx.lineTo(22, -5 - wingLift * 8);
+          ctx.lineTo(25, -11 - wingLift * 7);
+          ctx.lineTo(28, -4 - wingLift * 6);
+          ctx.lineTo(32, -7 - wingLift * 4);
+          ctx.lineTo(31, 8);
+        } else {
+          ctx.lineTo(18, 30 - wingLift * 9);
+          ctx.lineTo(23, 28 - wingLift * 7);
+          ctx.lineTo(25, 32 - wingLift * 5);
+          ctx.lineTo(30, 23 - wingLift * 5);
+          ctx.lineTo(32, 14);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.clearRect(10, 7, 2, 2);
+        ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(0, ground + .5);
+        ctx.lineTo(width, ground + .5);
+        ctx.stroke();
+        for (let i = 0; i < width / 58 + 2; i++) {
+          ctx.fillRect(i * 58 - (distance % 58), ground + 7 + (i % 3) * 3, i % 3 === 0 ? 8 : 3, 1);
+        }
+      }
+
+      function draw() {
+        if (!ctx) return;
+        ctx.clearRect(0, 0, width, height);
+        drawScenery();
+        if (mode === 'idle') {
+          drawCactus(width - 112, 31, 21);
+          drawCactus(width - 75, 22, 15);
+        }
+        obstacles.forEach((obstacle) => drawCactus(obstacle.x, obstacle.height, obstacle.width));
+        drawDinosaur();
+      }
+
+      function resize() {
+        const oldWidth = width;
+        const bounds = canvas.getBoundingClientRect();
+        // Preserve sprite proportions when the landscape layout uses a shorter canvas.
+        width = Math.max(1, bounds.width * height / Math.max(1, bounds.height || height));
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * ratio);
+        canvas.height = height * ratio;
+        ctx!.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx!.imageSmoothingEnabled = false;
+        if (width !== oldWidth && mode === 'running') pause();
+        draw();
+      }
+
+      function gameSound(type: 'gameStart' | 'jump' | 'land' | 'gameOver') {
+        const bounds = canvas.getBoundingClientRect();
+        const screenX = bounds.left + (dinosaurX + 16) / width * bounds.width;
+        const pan = Math.max(-1, Math.min(1, screenX / Math.max(window.innerWidth, 1) * 2 - 1));
+        window.dispatchEvent(new CustomEvent('kochi:game-sound', { detail: { type, pan } }));
+      }
+
+      function finish() {
+        mode = 'over';
+        gameSound('gameOver');
+        if (score > best) {
+          best = score;
+          try { localStorage.setItem('kochi-labs-dino-best', String(best)); } catch { /* Saving a best score is optional. */ }
+        }
+        updateScore();
+        status.textContent = `Game over. ${score} points. Press Space or tap to restart.`;
+        pauseButton.hidden = true;
+        restartButton.hidden = false;
+      }
+
+      function tick(now: number) {
+        if (mode !== 'running') return;
+        const dt = Math.min((now - previousTime) / 1000, .032);
+        previousTime = now;
+        const speed = Math.min(300 + distance / 160, 490);
+        distance += speed * dt;
+        const nextScore = Math.floor(distance / 10);
+        if (nextScore !== score) {
+          score = nextScore;
+          updateScore();
+        }
+        if (jumpHeight > 0 || velocity > 0) {
+          const previousJumpHeight = jumpHeight;
+          jumpHeight = Math.max(0, jumpHeight + velocity * dt);
+          velocity -= 1520 * dt;
+          if (jumpHeight === 0) {
+            velocity = 0;
+            if (previousJumpHeight > 0) gameSound('land');
+          }
+        }
+        nextObstacle -= dt;
+        if (nextObstacle <= 0) {
+          obstacles.push({ x: width + 24, width: 18 + Math.random() * 8, height: 28 + Math.random() * 13 });
+          nextObstacle = 1.05 + Math.random() * .7;
+        }
+        for (const obstacle of obstacles) {
+          obstacle.x -= speed * dt;
+          if (dinosaurX + 29 > obstacle.x + 3 && dinosaurX + 8 < obstacle.x + obstacle.width - 3 && jumpHeight + 5 < obstacle.height) {
+            finish();
+            break;
+          }
+        }
+        obstacles = obstacles.filter((obstacle) => obstacle.x + obstacle.width > 0);
+        draw();
+        if (mode === 'running') frame = requestAnimationFrame(tick);
+      }
+
+      function start() {
+        const wasRunning = mode === 'running';
+        if (mode !== 'paused') {
+          jumpHeight = 0;
+          velocity = 0;
+          distance = 0;
+          score = 0;
+          obstacles = [];
+          nextObstacle = .8;
+        }
+        showingBest = false;
+        updateScore();
+        mode = 'running';
+        if (!wasRunning) gameSound('gameStart');
+        status.textContent = '';
+        pauseButton.hidden = false;
+        restartButton.hidden = true;
+        previousTime = performance.now();
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(tick);
+        canvas.focus({ preventScroll: true });
+      }
+
+      function jump() {
+        if (mode !== 'running') start();
+        if (jumpHeight === 0 && velocity === 0) {
+          velocity = 510;
+          gameSound('jump');
+        }
+      }
+
+      function pause() {
+        if (mode !== 'running') return;
+        mode = 'paused';
+        cancelAnimationFrame(frame);
+        status.textContent = 'Paused. Press Space or tap to resume.';
+        pauseButton.hidden = true;
+      }
+
+      restartButton.addEventListener('click', start);
+      scoreElement.addEventListener('click', () => {
+        showingBest = !showingBest;
+        updateScore();
+      });
+      pauseButton.addEventListener('click', () => { pause(); canvas.focus({ preventScroll: true }); });
+      canvas.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        canvas.focus({ preventScroll: true });
+        jump();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.altKey || event.ctrlKey || event.metaKey || event.defaultPrevented) return;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest('input, textarea, select, [contenteditable], button, a')) return;
+        const jumpKey = event.code === 'Space' || (event.code === 'ArrowUp' && (target === canvas || mode === 'running'));
+        if (jumpKey) {
+          event.preventDefault();
+          if (!event.repeat) jump();
+        } else if (event.code === 'Escape') {
+          pause();
+        }
+      });
+      canvas.addEventListener('blur', (event) => {
+        // Keep the pause button available when keyboard users tab to it.
+        if (event.relatedTarget !== pauseButton) pause();
+      });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+      const observer = new ResizeObserver(resize);
+      observer.observe(canvas);
+      resize();
+    }
+  }
+</script>
+
+<style>
+  .runner { width: 100%; max-width: 1040px; margin-inline: auto; color: #000000; }
+  .runner-heading { height: 36px; display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
+  .runner-score { padding: 0; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: inherit; cursor: pointer; font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 3px; }
+  .runner-field { position: relative; }
+  .runner-canvas { display: block; width: 100%; height: 155px; touch-action: manipulation; border: 0; outline: none; box-shadow: none; }
+  .runner-canvas:focus, .runner-canvas:focus-visible { outline: none; border: 0; box-shadow: none; }
+  [hidden] { display: none !important; }
+  .runner-pause, .runner-restart { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border: 0; border-radius: 0; background: transparent; color: #000000; cursor: pointer; outline: none; }
+  .runner-restart { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); }
+  .runner-pause:hover, .runner-restart:hover, .runner-score:hover { opacity: .7; }
+  .runner-pause:focus-visible, .runner-restart:focus-visible, .runner-score:focus-visible { outline: none; filter: drop-shadow(0 0 7px #000000); }
+</style>

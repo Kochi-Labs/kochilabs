@@ -1,0 +1,11 @@
+Metro rolling sound
+
+Background Rumble Noise by gryc (Gryc Ueusp)
+Source: https://opengameart.org/content/background-rumble-noise
+Licensed under Creative Commons Attribution 3.0 Unported:
+https://creativecommons.org/licenses/by/3.0/
+
+Adapted for Kochi Labs: the author-recommended 4–25 second train recording excerpt; 45 Hz high-pass and 4 kHz low-pass filtering; normalized toward -23 LUFS; converted to mono 44.1 kHz MP3 with 40 ms edge fades.
+This is an actual train-trip recording. The source does not identify the train model or location.
+
+No endorsement by the original artist is implied.

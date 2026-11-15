@@ -1,0 +1,3 @@
+Mode: Built-in ImageGen, edit of kerala-backwaters.png
+
+Edit this existing anime watercolor Kerala backwaters illustration. Remove ONLY the houseboat in the center and all of its golden brown reflection in the water underneath. Fill those areas seamlessly with the distant tree-lined shoreline and blue reflective water respectively. Preserve everything else: exact composition, aspect ratio, coconut palms and leaves framing both sides, pale blue open sky, clouds, green hills, tiled Kerala houses, soft hand-painted gouache watercolor texture, colors and lighting. No boat, no new objects, no text. This is a clean background plate for a website with an animated boat rendered separately.
