@@ -1,6 +1,6 @@
-# Kochi Labs
+# Kochi Raps
 
-A minimal Astro holding page: “Kochi Labs is cooking something.” Includes an original Chrome-inspired dinosaur runner with keyboard and touch controls.
+A minimal Astro holding page: “Kochi Raps is cooking something.” Includes an original Chrome-inspired dinosaur runner with keyboard and touch controls. The page uses a black background and vibrant yellow, with only the headline and game score visible.
 
 ## Development
 
@@ -27,4 +27,4 @@ The production site is generated in `dist/` and can be deployed to a static host
 - `src/components/DinoGame.astro`: runner and controls.
 - `public/favicon.svg`: brand mark.
 
-Use the on-screen game control, Space, Arrow Up, or tap to jump. Best scores are stored locally when browser storage is available.
+Use the play icon to start, then Space, Arrow Up, or tap to jump. The pause icon or Escape pauses the game. The current score is shown above the game.

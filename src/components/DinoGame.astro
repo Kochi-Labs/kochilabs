@@ -1,35 +1,18 @@
-<section class="runner" aria-labelledby="runner-title" data-dino-game>
+<section class="runner" aria-label="Dinosaur runner game" data-dino-game>
   <div class="runner-heading">
-    <div>
-      <p class="runner-eyebrow">A little something while you wait</p>
-      <h2 id="runner-title">Good things take a little time. <span>Jump in.</span></h2>
-    </div>
-    <div class="runner-scores" aria-label="Game score">
-      <span class="runner-best">HI <span data-best>00000</span></span>
-      <span data-score aria-label="Current score">00000</span>
-    </div>
+    <button class="runner-pause" type="button" data-pause aria-label="Pause game" hidden>
+      <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true"><path d="M2 2h3v12H2zM9 2h3v12H9z" /></svg>
+    </button>
+    <span class="runner-score" data-score aria-label="Current score">00000</span>
   </div>
   <div class="runner-field">
-    <canvas
-      class="runner-canvas"
-      width="1040"
-      height="155"
-      tabindex="0"
-      aria-label="Dinosaur runner. Press Space or Up Arrow, or tap, to start and jump over cacti."
-      aria-describedby="runner-instructions"
-    ></canvas>
+    <canvas class="runner-canvas" width="1040" height="155" tabindex="0" aria-label="Dinosaur runner. Press Space or Up Arrow, or tap, to start and jump over cacti."></canvas>
     <div class="runner-overlay" data-overlay>
-      <p data-status aria-live="polite"></p>
-      <button class="runner-play" type="button" data-play>
-        <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" aria-hidden="true"><path d="M0 0L10 6L0 12V0Z" /></svg>
-        <span data-play-label>Let's play</span>
+      <p class="sr-only" data-status aria-live="polite"></p>
+      <button class="runner-play" type="button" data-play aria-label="Start game">
+        <svg width="20" height="24" viewBox="0 0 20 24" fill="currentColor" aria-hidden="true"><path d="M2 2L18 12L2 22Z" /></svg>
       </button>
     </div>
-  </div>
-  <div class="runner-bottom">
-    <p id="runner-instructions"><span class="runner-desktop"><kbd>space</kbd> or <kbd>↑</kbd> to jump</span><span class="runner-mobile">Tap to jump</span><span class="runner-divider">/</span> dodge the cacti</p>
-    <button type="button" class="runner-pause" data-pause hidden>Pause game</button>
-    <p class="runner-note" data-note>A tiny break. A new high score.</p>
   </div>
 </section>
 
@@ -40,12 +23,9 @@
     const ctx = canvas.getContext('2d');
     const overlay = root.querySelector<HTMLElement>('[data-overlay]')!;
     const play = root.querySelector<HTMLButtonElement>('[data-play]')!;
-    const playLabel = root.querySelector<HTMLElement>('[data-play-label]')!;
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
     const scoreElement = root.querySelector<HTMLElement>('[data-score]')!;
-    const bestElement = root.querySelector<HTMLElement>('[data-best]')!;
     const status = root.querySelector<HTMLElement>('[data-status]')!;
-    const note = root.querySelector<HTMLElement>('[data-note]')!;
     if (ctx) {
       type Obstacle = { x: number; width: number; height: number };
       let width = 1040;
@@ -57,14 +37,11 @@
       let velocity = 0;
       let distance = 0;
       let score = 0;
-      let best = 0;
       let obstacles: Obstacle[] = [];
       let nextObstacle = 1.5;
       let previousTime = 0;
       let frame = 0;
-      try { best = Number(localStorage.getItem('kochi-labs-dino-best')) || 0; } catch { /* Storage is optional. */ }
       const formatted = (n: number) => Math.min(Math.max(0, Math.floor(n)), 99999).toString().padStart(5, '0');
-      bestElement.textContent = formatted(best);
 
       const dinosaur = [
         '          XXXXXXXX  ',
@@ -90,7 +67,7 @@
         if (!ctx) return;
         const x = dinosaurX;
         const y = ground - 42 - jumpHeight;
-        ctx.fillStyle = '#243b30';
+        ctx.fillStyle = '#ffed00';
         dinosaur.forEach((row, rowIndex) => {
           for (let col = 0; col < row.length; col++) {
             if (row[col] === 'X') ctx.fillRect(x + col * 2, y + rowIndex * 2, 2, 2);
@@ -107,7 +84,7 @@
         if (!ctx) return;
         const y = ground - cactusHeight;
         const stem = Math.max(5, cactusWidth * .28);
-        ctx.fillStyle = '#6b7951';
+        ctx.fillStyle = '#ffed00';
         ctx.fillRect(x + cactusWidth / 2 - stem / 2, y, stem, cactusHeight);
         ctx.fillRect(x, y + 9, 5, cactusHeight * .43);
         ctx.fillRect(x, y + cactusHeight * .54, cactusWidth / 2, 5);
@@ -118,34 +95,6 @@
       function draw() {
         if (!ctx) return;
         ctx.clearRect(0, 0, width, height);
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = '#d3d6c8';
-        for (let i = 0; i < 3; i++) {
-          const cloudX = ((width * .30 + i * 287 - distance * .12) % (width + 100) + width + 100) % (width + 100) - 50;
-          const cloudY = 24 + (i % 2) * 26;
-          ctx.beginPath();
-          ctx.moveTo(cloudX, cloudY + 10);
-          ctx.lineTo(cloudX + 9, cloudY + 10);
-          ctx.lineTo(cloudX + 9, cloudY + 5);
-          ctx.lineTo(cloudX + 16, cloudY + 5);
-          ctx.lineTo(cloudX + 16, cloudY);
-          ctx.lineTo(cloudX + 30, cloudY);
-          ctx.lineTo(cloudX + 30, cloudY + 5);
-          ctx.lineTo(cloudX + 38, cloudY + 5);
-          ctx.lineTo(cloudX + 38, cloudY + 10);
-          ctx.lineTo(cloudX + 48, cloudY + 10);
-          ctx.stroke();
-        }
-        ctx.strokeStyle = '#aeb5a2';
-        ctx.beginPath();
-        ctx.moveTo(0, ground + .5);
-        ctx.lineTo(width, ground + .5);
-        ctx.stroke();
-        ctx.fillStyle = '#bec3b2';
-        for (let i = 0; i < width / 58 + 2; i++) {
-          const x = i * 58 - (distance % 58);
-          ctx.fillRect(x, ground + 7 + (i % 3) * 3, i % 3 === 0 ? 10 : 3, 1);
-        }
         if (mode === 'idle') {
           drawCactus(width - 112, 31, 21);
           drawCactus(width - 75, 22, 15);
@@ -156,7 +105,7 @@
 
       function resize() {
         const oldWidth = width;
-        width = Math.max(260, canvas.getBoundingClientRect().width);
+        width = Math.max(1, canvas.getBoundingClientRect().width);
         const ratio = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = Math.round(width * ratio);
         canvas.height = height * ratio;
@@ -168,16 +117,10 @@
 
       function finish() {
         mode = 'over';
-        if (score > best) {
-          best = score;
-          try { localStorage.setItem('kochi-labs-dino-best', String(best)); } catch { /* Storage is optional. */ }
-        }
-        bestElement.textContent = formatted(best);
         status.textContent = `Nice run. ${score} points!`;
-        playLabel.textContent = 'One more go';
+        play.setAttribute('aria-label', 'Restart game');
         overlay.hidden = false;
         pauseButton.hidden = true;
-        note.hidden = false;
       }
 
       function tick(now: number) {
@@ -224,7 +167,6 @@
         status.textContent = '';
         overlay.hidden = true;
         pauseButton.hidden = false;
-        note.hidden = true;
         previousTime = performance.now();
         cancelAnimationFrame(frame);
         frame = requestAnimationFrame(tick);
@@ -241,10 +183,9 @@
         mode = 'paused';
         cancelAnimationFrame(frame);
         status.textContent = 'Take your time.';
-        playLabel.textContent = 'Keep going';
+        play.setAttribute('aria-label', 'Resume game');
         overlay.hidden = false;
         pauseButton.hidden = true;
-        note.hidden = false;
       }
 
       play.addEventListener('click', start);
@@ -274,39 +215,15 @@
 </script>
 
 <style>
-  .runner { width: 100%; max-width: 1040px; margin-inline: auto; padding-block: 26px 28px; border-top: 1px dashed #c6cbbb; color: #243b30; }
-  .runner-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-  .runner-eyebrow { margin: 0 0 10px; font: 500 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 1.7px; text-transform: uppercase; color: #626e58; }
-  h2 { margin: 0; font-family: inherit; font-size: 14px; font-weight: 400; line-height: 1.5; }
-  h2 span { color: #626e58; }
-  .runner-scores { display: flex; gap: 24px; white-space: nowrap; font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 2px; }
-  .runner-best { color: #626e58; }
-  .runner-field { position: relative; margin-top: 6px; }
-  .runner-canvas { display: block; width: 100%; height: 155px; touch-action: manipulation; outline-offset: 4px; border-radius: 3px; }
-  .runner-canvas:focus-visible { outline: 1px dashed #6b7951; }
-  .runner-overlay { position: absolute; top: 29px; left: 50%; transform: translateX(-50%); text-align: center; }
-  .runner-overlay[hidden], [hidden] { display: none !important; }
-  [data-status] { margin: 0 0 10px; font-size: 12px; color: #626e58; }
-  [data-status]:empty { display: none; }
-  .runner-play { display: inline-flex; align-items: center; justify-content: center; gap: 11px; padding: 11px 18px; border: 1px solid #cbd0be; border-radius: 6px; background: #f6f4ed; color: #34462f; white-space: nowrap; font-family: inherit; font-size: 12px; font-weight: 500; line-height: 1.3; cursor: pointer; transition: background .15s, border-color .15s; }
-  .runner-play:hover { background: #e9ecde; border-color: #8a9678; }
-  .runner-play:focus-visible, .runner-pause:focus-visible { outline: 2px solid #6b7951; outline-offset: 4px; }
-  .runner-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; color: #626e58; }
-  .runner-bottom p { margin: 0; font-size: 10px; line-height: 1.6; }
-  kbd { font: inherit; border: 1px solid #d7dacd; border-radius: 3px; padding: 2px 5px; color: #626e58; }
-  .runner-divider { margin-inline: 10px; color: #b7bead; }
-  .runner-mobile { display: none; }
-  .runner-pause { padding: 0; border: 0; background: none; color: #626e58; font: inherit; font-size: 10px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-  @media (max-width: 600px) {
-    .runner { padding-top: 22px; }
-    .runner-heading { align-items: flex-start; gap: 12px; }
-    .runner-eyebrow { font-size: 8px; letter-spacing: 1px; }
-    h2 { max-width: 210px; font-size: 12px; }
-    .runner-scores { flex-direction: column; align-items: flex-end; gap: 9px; padding-top: 1px; font-size: 10px; letter-spacing: 1px; }
-    .runner-note { max-width: 125px; text-align: right; }
-    .runner-bottom p { font-size: 9px; }
-    .runner-divider { margin-inline: 6px; }
-  }
-  @media (pointer: coarse) { .runner-desktop { display: none; } .runner-mobile { display: inline; } }
-  @media (prefers-reduced-motion: reduce) { .runner-play { transition: none; } }
+  .runner { width: 100%; max-width: 1040px; margin-inline: auto; color: #ffed00; }
+  .runner-heading { height: 36px; display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
+  .runner-score { font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 3px; }
+  .runner-field { position: relative; }
+  .runner-canvas { display: block; width: 100%; height: 155px; touch-action: manipulation; border: 0; outline: none; box-shadow: none; }
+  .runner-canvas:focus, .runner-canvas:focus-visible { outline: none; border: 0; box-shadow: none; }
+  .runner-overlay { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); }
+  [hidden] { display: none !important; }
+  .runner-play, .runner-pause { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border: 0; border-radius: 0; background: transparent; color: #ffed00; cursor: pointer; outline: none; }
+  .runner-play:hover, .runner-pause:hover { opacity: .7; }
+  .runner-play:focus-visible, .runner-pause:focus-visible { filter: drop-shadow(0 0 7px #ffed00); }
 </style>
