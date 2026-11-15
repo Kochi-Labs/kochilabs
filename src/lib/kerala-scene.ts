@@ -6,7 +6,6 @@ import { createVillageHouses } from './village-houses';
 import { createLivingFoliage, foliageShaderUniforms, foliageShaderFunction } from './living-foliage';
 import { createLuxuryHouseboat } from './luxury-houseboat';
 import { createBoatWater } from './boat-water';
-import { createChineseFishingNets } from './chinese-fishing-nets';
 import { createMessageBottle } from './message-bottle';
 import { SKY_DRIFT_GLSL } from './sky-drift';
 import { createMetro, createViaduct, createLotus } from './scene-models';
@@ -26,7 +25,6 @@ export type KeralaSceneController = {
   toggleHouse(index: number): boolean;
   shakePalm(): void;
   openBottle(): void;
-  liftFishingNet(index?: number): void;
 };
 
 type SceneOptions = { onSoundMotion?: (motion: SceneSoundMotion) => void; onSound?: (type: 'water' | 'boat' | 'palm' | 'birds', pan?: number, intensity?: number) => void; onBottleAvailable?: (available: boolean) => void; onBottleFound?: () => void; backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean, automatic?: boolean) => void; onCoconutSplash?: (pan: number) => void; onPassengerFound?: () => void; onStormChange?: (intensity: number) => void; onSequencePhase?: (phase: string) => void; onReady?: (supported: boolean) => void };
@@ -60,7 +58,7 @@ void main() {
 
 /** A transparent WebGL layer; the caller's painted background remains the fallback. */
 export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptions): KeralaSceneController {
-  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setNight() {}, houseLabels: [], toggleHouse() { return false; }, shakePalm() {}, openBottle() {}, liftFishingNet() {} };
+  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setNight() {}, houseLabels: [], toggleHouse() { return false; }, shakePalm() {}, openBottle() {} };
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
@@ -105,7 +103,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let boatVelocityY = 0;
   let boatRoll = 0;
   let boatRollVelocity = 0;
-  let pointer: { id: number; x: number; y: number; worldX: number; boatX: number; dragging: boolean; target: 'bottle' | 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'net' | 'other'; houseIndex: number | null; lastCarriage?: boolean; netIndex?: number } | null = null;
+  let pointer: { id: number; x: number; y: number; worldX: number; boatX: number; dragging: boolean; target: 'bottle' | 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null; lastCarriage?: boolean } | null = null;
   const oldCursor = canvas.style.cursor;
   const oldTouchAction = canvas.style.touchAction;
   canvas.style.touchAction = 'pan-y';
@@ -217,8 +215,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     }
   });
 
-  const fishingNets = createChineseFishingNets();
-  scene.add(village.group, foliage.group, fishingNets.group);
+  scene.add(village.group, foliage.group);
   const passenger = createMetroPassenger(train);
   const messageBottle = createMessageBottle(options.onBottleAvailable);
   scene.add(messageBottle.group);
@@ -232,13 +229,6 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     const open = village.toggle(index);
     options.onHouseChange?.(index, open);
     return open;
-  }
-
-  function liftFishingNet(index = 0) {
-    if (destroyed || !ready) return;
-    fishingNets.lift(index);
-    const rig = fishingNets.group.children[Math.max(0, Math.min(1, index))];
-    options.onSound?.('boat', soundPan(rig?.position.x ?? 0), .35);
   }
 
   function backdropToWorld(u: number, v: number) {
@@ -340,13 +330,11 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     }
   }
 
-  function pick(clientX: number, clientY: number): { target: 'bottle' | 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'net' | 'other'; houseIndex: number | null; lastCarriage?: boolean; netIndex?: number } {
+  function pick(clientX: number, clientY: number): { target: 'bottle' | 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null; lastCarriage?: boolean } {
     const point = worldPoint(clientX, clientY);
     scene.updateMatrixWorld();
     if (messageBottle.hitTest(raycaster)) return { target: 'bottle', houseIndex: null };
     if (raycaster.intersectObject(boat, true).length) return { target: 'boat', houseIndex: null };
-    const netHit = raycaster.intersectObject(fishingNets.group, true)[0];
-    if (netHit) return { target: 'net', houseIndex: null, netIndex: netHit.object.userData.fishingNetIndex ?? 0 };
     const trainHit = raycaster.intersectObject(train, true)[0];
     if (trainHit) return { target: 'train', houseIndex: null, lastCarriage: passenger.hitTest(trainHit.object) };
     if (point) {
@@ -366,9 +354,9 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   function onPointerDown(event: PointerEvent) {
     if (event.button !== 0 || !ready || pointer) return;
-    const { target, houseIndex, lastCarriage, netIndex } = pick(event.clientX, event.clientY);
+    const { target, houseIndex, lastCarriage } = pick(event.clientX, event.clientY);
     const point = worldPoint(event.clientX, event.clientY);
-    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target, houseIndex, lastCarriage, netIndex };
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target, houseIndex, lastCarriage };
     canvas.setPointerCapture(event.pointerId);
     if (target === 'boat') {
       boatManualUntil = time + 10;
@@ -408,8 +396,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
         options.onSound?.('boat', soundPan(boatX), THREE.MathUtils.clamp(Math.abs(boatVelocityX) / 90, .4, 1));
       } else if (tap) nudgeBoat();
       canvas.style.cursor = 'grab';
-    } else if (current.target === 'net' && tap) liftFishingNet(current.netIndex);
-    else if (current.target === 'bottle' && tap) openBottle();
+    } else if (current.target === 'bottle' && tap) openBottle();
     else if (current.target === 'water' && tap) splashAt(event.clientX, event.clientY);
     else if (current.target === 'train' && tap) {
       if (passenger.tap()) options.onPassengerFound?.();
@@ -456,7 +443,6 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.7));
     renderer.setSize(width, height, false);
     boatTargetX = clampBoatX(boatTargetX);
-    fishingNets.resize(viewWidth);
     const moonBounds = options.moonElement?.getBoundingClientRect();
     const moonScreenX = moonBounds ? moonBounds.left + moonBounds.width / 2 : rect.left + width * .76;
     const moonRadius = moonBounds ? moonBounds.width * .31 : 24;
@@ -527,8 +513,6 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     background.position.y = -scroll * 29;
     village.group.position.y = background.position.y;
     foliage.group.position.y = background.position.y;
-    fishingNets.group.position.y = background.position.y;
-    fishingNets.update(time, night, reducedMotion);
     viaduct.position.y = -95 - scroll * 14;
     train.position.y = -94 - scroll * 14;
     boat.position.set(boatX, boatY, 10);
@@ -644,7 +628,6 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   return {
     openBottle,
-    liftFishingNet,
     splashAt,
     houseLabels: village.labels,
     toggleHouse,
@@ -683,7 +666,6 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       foliage.destroy();
       passenger.destroy();
       messageBottle.destroy();
-      fishingNets.destroy();
       boatWater.destroy();
       luxuryBoat.destroy();
       disposeObject(scene);
