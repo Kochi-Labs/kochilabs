@@ -1,10 +1,11 @@
 import * as THREE from 'three';
+type CarPaint = THREE.MeshBasicMaterial | THREE.MeshStandardMaterial;
 
 /** Damage belongs to each carriage, not the shared original train materials. */
 export function createMetroDamage(cars: THREE.Group[]) {
   const root = new THREE.Group(); root.name = 'Scorched carriage damage';
   const overlays: { mesh: THREE.Mesh; shader: THREE.ShaderMaterial; cracks: THREE.LineSegments; crackMaterial: THREE.LineBasicMaterial }[] = [];
-  const replaced: { mesh: THREE.Mesh; original: THREE.Material | THREE.Material[]; copies: THREE.MeshBasicMaterial[]; day: THREE.Color[]; night: THREE.Color[]; car: number }[] = [];
+  const replaced: { mesh: THREE.Mesh; original: THREE.Material | THREE.Material[]; copies: CarPaint[]; day: THREE.Color[]; night: THREE.Color[]; car: number }[] = [];
   const warped: { mesh: THREE.Mesh; original: THREE.BufferGeometry; geometry: THREE.BufferGeometry; source: Float32Array; lastDamage: number; car: number }[] = [];
   const burns = cars.map(() => 0);
   const charColor = new THREE.Color('#252625'), moon = new THREE.Color('#404c6c'), warm = new THREE.Color('#ff9c43');
@@ -34,9 +35,14 @@ export function createMetroDamage(cars: THREE.Group[]) {
       if (!(object instanceof THREE.Mesh)) return;
       const original = object.material;
       const list = Array.isArray(original) ? original : [original];
-      if (!list.every(m => m instanceof THREE.MeshBasicMaterial)) return;
-      const copies = list.map(m => m.clone() as THREE.MeshBasicMaterial);
-      replaced.push({mesh: object, original, copies, day: copies.map(m => m.color.clone()), night: copies.map(m => m.userData.nightGlow ? new THREE.Color('#ffd58c') : m.color.clone().multiply(moon)), car:index});
+      if (!list.every(m => m instanceof THREE.MeshBasicMaterial || m instanceof THREE.MeshStandardMaterial)) return;
+      const copies = list.map(m => {
+        const copy = m.clone() as CarPaint;
+        copy.onBeforeCompile = m.onBeforeCompile;
+        copy.customProgramCacheKey = m.customProgramCacheKey;
+        return copy;
+      });
+      replaced.push({mesh: object, original, copies, day: copies.map(m => m.color.clone()), night: copies.map(m => m instanceof THREE.MeshStandardMaterial ? m.color.clone() : m.userData.nightGlow ? new THREE.Color('#ffd58c') : m.color.clone().multiply(moon)), car:index});
       object.material = Array.isArray(original) ? copies : copies[0]!;
       object.geometry.computeBoundingBox();
       const box = object.geometry.boundingBox!;
@@ -83,6 +89,8 @@ export function createMetroDamage(cars: THREE.Group[]) {
         attr.setXYZ(i,x+Math.sin(x*.23)*amount*.5*top,y-Math.pow(Math.sin(x*.10+1),2)*3.6*amount*top,z+Math.sin(x*.17)*1.1*amount*top);
       }
       attr.needsUpdate=true;
+      item.geometry.computeVertexNormals();
+      item.geometry.computeBoundingSphere();
     });
     overlays.forEach((o,i)=>{o.mesh.visible=burns[i]!>.002;o.shader.uniforms.uDamage!.value=burns[i];o.shader.uniforms.uWet!.value=wet;o.shader.uniforms.uHeat!.value=heat;o.crackMaterial.opacity=burns[i]!*.7;});
   }
