@@ -61,6 +61,8 @@ The restored rolling wave style drives the boat’s five hull samples and coconu
 
 Click any metro carriage once to ignite only the last carriage. Rain arrives after five seconds and extinguishes its flames by twelve seconds, followed by cooling steam. Scorch marks, warped panels, and cracked windows remain until the train leaves the screen. Another click after the sequence replays it. The dragon is removed. This is a real-time visual simulation, not a photorealistic fluid or structural simulation.
 
-## Brand placement demo
+## Soundscape
 
-Append `?brand=demo` to preview a small Kochi Labs wordmark and placeholder mark at the top center, with day/night colours. The regular URL keeps the existing layout. Replace the sample mark with the approved logo before making the lockup permanent.
+The logo demo has been removed. A small speaker control enables or mutes an original, synthesized handpan-style melody and gentle material sounds for water, the houseboat, palms, windows, coconuts, birds, the bottle and leaf note, and the dinosaur game. Rain and fire have quiet ambient beds. All audio is generated locally with Web Audio; no recordings or remote audio assets are required.
+
+Audio begins with the first pointer or supported keyboard interaction. Muting is remembered, hidden tabs suspend audio, and returning requires another interaction to resume. `src/lib/soundscape.ts` owns synthesis, mixing, effect throttling, and cleanup.

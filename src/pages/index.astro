@@ -14,14 +14,13 @@ import DinoGame from '../components/DinoGame.astro';
     <link rel="preload" href="/fonts/Birthstone-Regular.ttf" as="font" type="font/ttf" crossorigin />
   </head>
   <body>
-    <header class="brand-lockup" aria-label="Kochi Labs" hidden>
-      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-        <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-          <path d="M16 4v24M4 16h24M7.5 7.5l17 17M7.5 24.5l17-17" />
-        </g>
+    <button class="sound-toggle" type="button" aria-label="Turn sound on" aria-pressed="false" title="Turn sound on">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M11 5 6 9H3v6h3l5 4Z" />
+        <g class="sound-waves"><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14" /></g>
+        <path class="sound-off" d="m16 10 5 5m0-5-5 5" />
       </svg>
-      <span class="brand-name">Kochi <span>Labs</span></span>
-    </header>
+    </button>
     <div class="landscape" aria-hidden="true">
       <img src="/images/kerala-backwaters-clean.png" alt="" fetchpriority="high" decoding="async" />
     </div>
@@ -75,22 +74,46 @@ import DinoGame from '../components/DinoGame.astro';
   import { createKeralaScene } from '../lib/kerala-scene';
   import { installHeadlineLanguages } from '../lib/headline-languages';
   import { installBottleNote } from '../lib/bottle-note';
+  import { createSoundscape, type SoundEffect } from '../lib/soundscape';
 
-  // A shareable placement concept, enabled only by the demo URL.
-  document.querySelector<HTMLElement>('.brand-lockup')!.hidden = new URLSearchParams(location.search).get('brand') !== 'demo';
 
+  const soundButton = document.querySelector<HTMLButtonElement>('.sound-toggle')!;
+  const soundscape = createSoundscape((state) => {
+    document.body.dataset.sound = state;
+    const playing = state === 'playing';
+    soundButton.setAttribute('aria-pressed', String(playing));
+    const label = state === 'unavailable' ? 'Sound unavailable in this browser' : playing ? 'Mute sound and handpan music' : 'Turn sound and handpan music on';
+    soundButton.setAttribute('aria-label', label);
+    soundButton.title = label;
+    soundButton.disabled = state === 'unavailable';
+  });
+  const unlockSound = (event: Event) => {
+    if (event.target instanceof Element && event.target.closest('.sound-toggle')) return;
+    if (event instanceof KeyboardEvent && (event.repeat || event.metaKey || event.ctrlKey || event.altKey || !['Enter', ' ', 'ArrowUp'].includes(event.key))) return;
+    void soundscape.unlock();
+  };
+  document.addEventListener('pointerdown', unlockSound, { capture: true, passive: true });
+  document.addEventListener('keydown', unlockSound, { capture: true });
+  soundButton.addEventListener('click', () => { void soundscape.toggle(); });
+  const gameSound = (event: Event) => {
+    const type = (event as CustomEvent<{ type: SoundEffect }>).detail?.type;
+    if (['gameStart', 'jump', 'land', 'gameOver'].includes(type)) soundscape.play(type, -.25, .65);
+  };
+  window.addEventListener('kochi:game-sound', gameSound);
   const canvas = document.querySelector<HTMLCanvasElement>('.kerala-scene')!;
   const headline = document.querySelector<HTMLButtonElement>('.headline-trigger')!;
   const noteDialog = document.querySelector<HTMLDialogElement>('.bottle-note')!;
   const bottleButton = document.querySelector<HTMLButtonElement>('.bottle-shortcut')!;
-  const bottleNote = installBottleNote(noteDialog);
+  const bottleNote = installBottleNote(noteDialog, (type) => soundscape.play(type, 0, .8));
   const houseButtons: HTMLButtonElement[] = [];
   const scene = createKeralaScene(canvas, {
     backgroundUrl: '/images/kerala-backwaters-clean.png',
+    onSound(type, pan, intensity) { soundscape.play(type, pan, intensity); },
     moonElement: document.querySelector<HTMLButtonElement>('.celestial')!,
     onBottleAvailable(available) { bottleButton.hidden = !available; },
-    onBottleFound() { bottleNote.open(); },
+    onBottleFound() { soundscape.play('cork', -.2); bottleNote.open(); },
     onHouseChange(index, open, automatic) {
+      if (!automatic) soundscape.play('window', (index / 11 - .5) * 1.2, open ? .8 : .6);
       const button = houseButtons[index];
       if (button) {
         button.setAttribute('aria-pressed', String(open));
@@ -98,16 +121,19 @@ import DinoGame from '../components/DinoGame.astro';
       }
       if (!automatic) document.querySelector('#village-status')!.textContent = `${scene.houseLabels[index]}: ${open ? 'windows open, lights on' : 'windows closed, lights off'}.`;
     },
-    onStormChange(intensity) { document.body.style.setProperty('--storm', String(intensity)); },
+    onStormChange(intensity) { document.body.style.setProperty('--storm', String(intensity)); soundscape.setRain(intensity); },
     onSequencePhase(phase) {
       const status = document.querySelector('#village-status')!;
+      soundscape.setFire(phase === 'fire' ? .65 : phase === 'rain' ? .2 : 0);
       if (phase === 'rain') status.textContent = 'Rain sweeps over the metro, cooling the damaged rear carriage and extinguishing the fire.';
       if (phase === 'cooled') status.textContent = 'The fire is out. Steam lifts from the scorched metro as the rain eases.';
     },
     onPassengerFound() {
+      soundscape.setFire(.65);
       document.querySelector('#village-status')!.textContent = 'The last metro carriage catches fire. Rain will arrive to extinguish it.';
     },
     onCoconutSplash() {
+      soundscape.play('coconut', -.2, .9);
       document.querySelector('#village-status')!.textContent = 'A coconut splashes into the backwaters and floats.';
     },
     onReady(supported) {
@@ -149,6 +175,8 @@ import DinoGame from '../components/DinoGame.astro';
     isNight = !isNight;
     document.body.dataset.time = isNight ? 'night' : 'day';
     scene.setNight(isNight);
+    soundscape.setNight(isNight);
+    soundscape.play('celestial', .35, .65);
     celestial.setAttribute('aria-pressed', String(isNight));
     celestial.setAttribute('aria-label', `${isNight ? 'Moon' : 'Sun'}. Double-click to change to ${isNight ? 'day' : 'night'}. Enter or Space also works.`);
     celestial.title = `Double-click for ${isNight ? 'day' : 'night'}`;
@@ -174,6 +202,7 @@ import DinoGame from '../components/DinoGame.astro';
     scene.setScroll(travel > 0 ? Math.min(1, Math.max(0, scrollY / travel)) : 0);
   };
   const disposeLanguages = installHeadlineLanguages(headline, bottleNote.setLanguage);
+  headline.addEventListener('click', () => soundscape.play('language', 0, .45));
   const keyboardSplash = (event: KeyboardEvent) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
@@ -183,7 +212,14 @@ import DinoGame from '../components/DinoGame.astro';
   addEventListener('scroll', scrollScene, { passive: true });
   addEventListener('resize', scrollScene, { passive: true });
   scrollScene();
-  addEventListener('pagehide', (event) => { if (!event.persisted) { disposeLanguages(); bottleNote.destroy(); scene.destroy(); } });
+  addEventListener('pagehide', (event) => {
+    if (!event.persisted) {
+      document.removeEventListener('pointerdown', unlockSound, true);
+      document.removeEventListener('keydown', unlockSound, true);
+      window.removeEventListener('kochi:game-sound', gameSound);
+      disposeLanguages(); bottleNote.destroy(); scene.destroy(); soundscape.destroy();
+    }
+  });
 </script>
 
 <style is:global>
@@ -199,14 +235,17 @@ import DinoGame from '../components/DinoGame.astro';
 </style>
 
 <style>
-  .brand-lockup { position: fixed; z-index: 2; top: max(env(safe-area-inset-top), clamp(28px, 4.5svh, 44px)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; color: #204b43; pointer-events: none; user-select: none; text-shadow: 0 1px 12px #edf7f56b; transition: color .9s ease; }
-  .brand-lockup[hidden] { display: none; }
-  .brand-mark { width: 25px; height: 25px; flex: none; }
-  .brand-name { font: 600 19px/1.2 Arial, Helvetica, sans-serif; letter-spacing: -.5px; white-space: nowrap; }
-  .brand-name span { font-weight: 400; }
-  :global(body[data-time="night"]) .brand-lockup { color: #f2e8c9; text-shadow: 0 1px 14px #071b3b80; }
-  @media (max-width: 480px) { .brand-lockup { gap: 8px; top: max(env(safe-area-inset-top), 28px); } .brand-mark { width: 22px; height: 22px; } .brand-name { font-size: 17px; } }
-  @media (prefers-reduced-motion: reduce) { .brand-lockup { transition: none; } }
+  .sound-toggle { position: fixed; z-index: 3; top: max(env(safe-area-inset-top), 18px); right: max(env(safe-area-inset-right), 18px); display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%; background: #e8f2ed8c; color: #254c43; cursor: pointer; opacity: .8; transition: color .5s, background .5s, opacity .2s; }
+  .sound-toggle:hover, .sound-toggle:focus-visible { opacity: 1; background: #f3f7e8c9; }
+  .sound-toggle:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
+  .sound-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .sound-waves { display: none; }
+  .sound-toggle[aria-pressed="true"] .sound-waves { display: initial; }
+  .sound-toggle[aria-pressed="true"] .sound-off { display: none; }
+  .sound-toggle:disabled { opacity: .4; cursor: default; }
+  :global(body[data-time="night"]) .sound-toggle { color: #e9e1c1; background: #142b4666; }
+  @media (max-width: 480px) { .sound-toggle { top: 14px; right: 12px; } }
+  @media (prefers-reduced-motion: reduce) { .sound-toggle { transition: none; } }
   .leaf-scroll-canvas { display: none; width: 100%; height: clamp(220px, 42vw, 300px); pointer-events: none; }
   .bottle-note[data-scroll="ready"] { width: min(660px, calc(100vw - 24px)); padding: 0; border: 0; background: none; box-shadow: none; transform: none; }
   .bottle-note[data-scroll="ready"]::before, .bottle-note[data-scroll="ready"] .leaf-binding { display: none; }

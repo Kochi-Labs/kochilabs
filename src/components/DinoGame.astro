@@ -199,8 +199,13 @@
         draw();
       }
 
+      function gameSound(type: 'gameStart' | 'jump' | 'land' | 'gameOver') {
+        window.dispatchEvent(new CustomEvent('kochi:game-sound', { detail: { type } }));
+      }
+
       function finish() {
         mode = 'over';
+        gameSound('gameOver');
         if (score > best) {
           best = score;
           try { localStorage.setItem('kochi-labs-dino-best', String(best)); } catch { /* Saving a best score is optional. */ }
@@ -223,9 +228,13 @@
           updateScore();
         }
         if (jumpHeight > 0 || velocity > 0) {
+          const previousJumpHeight = jumpHeight;
           jumpHeight = Math.max(0, jumpHeight + velocity * dt);
           velocity -= 1520 * dt;
-          if (jumpHeight === 0) velocity = 0;
+          if (jumpHeight === 0) {
+            velocity = 0;
+            if (previousJumpHeight > 0) gameSound('land');
+          }
         }
         nextObstacle -= dt;
         if (nextObstacle <= 0) {
@@ -245,6 +254,7 @@
       }
 
       function start() {
+        const wasRunning = mode === 'running';
         if (mode !== 'paused') {
           jumpHeight = 0;
           velocity = 0;
@@ -256,6 +266,7 @@
         showingBest = false;
         updateScore();
         mode = 'running';
+        if (!wasRunning) gameSound('gameStart');
         status.textContent = '';
         pauseButton.hidden = false;
         restartButton.hidden = true;
@@ -267,7 +278,10 @@
 
       function jump() {
         if (mode !== 'running') { start(); return; }
-        if (jumpHeight === 0) velocity = 510;
+        if (jumpHeight === 0 && velocity === 0) {
+          velocity = 510;
+          gameSound('jump');
+        }
       }
 
       function pause() {

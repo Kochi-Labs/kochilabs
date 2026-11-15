@@ -26,7 +26,7 @@ export type KeralaSceneController = {
   openBottle(): void;
 };
 
-type SceneOptions = { onBottleAvailable?: (available: boolean) => void; onBottleFound?: () => void; backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean, automatic?: boolean) => void; onCoconutSplash?: () => void; onPassengerFound?: () => void; onStormChange?: (intensity: number) => void; onSequencePhase?: (phase: string) => void; onReady?: (supported: boolean) => void };
+type SceneOptions = { onSound?: (type: 'water' | 'boat' | 'palm' | 'birds', pan?: number, intensity?: number) => void; onBottleAvailable?: (available: boolean) => void; onBottleFound?: () => void; backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean, automatic?: boolean) => void; onCoconutSplash?: () => void; onPassengerFound?: () => void; onStormChange?: (intensity: number) => void; onSequencePhase?: (phase: string) => void; onReady?: (supported: boolean) => void };
 type Lotus = { group: THREE.Group; x: number; y: number; born: number; phase: number };
 type Bird = { group: THREE.Group; left: THREE.Mesh; right: THREE.Mesh; born: number; origin: THREE.Vector3; direction: number; phase: number };
 
@@ -276,6 +276,10 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     lotuses.push({ group, x, y, born: time, phase: Math.random() * Math.PI * 2 });
   }
 
+  function soundPan(x: number) {
+    return THREE.MathUtils.clamp(x / Math.max(viewWidth / 2, 1), -1, 1);
+  }
+
   function splashAt(clientX: number, clientY: number) {
     if (destroyed || !ready) return;
     const point = worldPoint(clientX, clientY);
@@ -284,6 +288,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     if (!riverContains(uv.x, uv.y)) return;
     impulse(point.x, point.y);
     addLotus(point.x, point.y);
+    options.onSound?.('water', soundPan(point.x), 1);
   }
 
   function nudgeBoat() {
@@ -292,10 +297,12 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     boatRollVelocity += reducedMotion ? .035 : .13;
     impulse(boatX - 95, boatY - 3, 11);
     impulse(boatX + 85, boatY - 5, 7);
+    options.onSound?.('boat', soundPan(boatX), .65);
   }
 
   function releaseBirds() {
     if (destroyed) return;
+    options.onSound?.('birds', soundPan(boatX), .6);
     const count = reducedMotion ? 3 : 6;
     for (let i = 0; i < count; i++) {
       if (birds.length >= 18) {
@@ -380,6 +387,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       if (current.dragging) {
         boatTargetX = clampBoatX(boatX + boatVelocityX * .22);
         impulse(boatX, boatY - 10, 7);
+        options.onSound?.('boat', soundPan(boatX), THREE.MathUtils.clamp(Math.abs(boatVelocityX) / 90, .4, 1));
       } else if (tap) nudgeBoat();
       canvas.style.cursor = 'grab';
     } else if (current.target === 'bottle' && tap) openBottle();
@@ -390,7 +398,11 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     else if (current.target === 'house' && tap && current.houseIndex !== null) toggleHouse(current.houseIndex);
     else if (current.target === 'foliage' && tap) {
       const point = worldPoint(event.clientX, event.clientY);
-      if (point) { const uv = backdropPoint(point); foliage.tap(uv.x, uv.y); }
+      if (point) {
+        const uv = backdropPoint(point);
+        foliage.tap(uv.x, uv.y);
+        options.onSound?.('palm', soundPan(point.x), .7);
+      }
     }
     else if (current.target === 'other' && tap) releaseBirds();
   }
@@ -596,7 +608,9 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     houseLabels: village.labels,
     toggleHouse,
     shakePalm() {
+      if (destroyed) return;
       foliage.shakeVisible(.5 - viewWidth / 3440, .5 + viewWidth / 3440);
+      options.onSound?.('palm', 0, .8);
     },
     setNight(enabled) {
       if (destroyed) return;

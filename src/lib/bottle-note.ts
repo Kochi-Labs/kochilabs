@@ -11,7 +11,7 @@ const messages = {
 } as const;
 
 /** Native accessible dialog, with the same physical unrolling leaf as before. */
-export function installBottleNote(dialog: HTMLDialogElement) {
+export function installBottleNote(dialog: HTMLDialogElement, onSound?: (type: 'paperOpen' | 'paperClose') => void) {
   const message = dialog.querySelector<HTMLElement>('#bottle-message')!;
   const leaf = createPalmLeafScroll(dialog.querySelector<HTMLCanvasElement>('.leaf-scroll-canvas')!);
   if (leaf) dialog.dataset.scroll = 'ready';
@@ -24,10 +24,12 @@ export function installBottleNote(dialog: HTMLDialogElement) {
     message.lang = language;
     dialog.showModal();
     leaf?.open(messages[language], language);
+    onSound?.('paperOpen');
   }
   function close() {
     if (!dialog.open || closing) return;
     closing = true;
+    onSound?.('paperClose');
     const done = () => { dialog.close(); closing = false; };
     if (leaf) leaf.close(done); else done();
   }
