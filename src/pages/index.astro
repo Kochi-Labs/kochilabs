@@ -46,6 +46,11 @@ import DinoGame from '../components/DinoGame.astro';
     <span class="sr-only" role="status" id="time-status"></span>
     <span class="sr-only" role="status" id="village-status"></span>
     <nav class="village-controls" aria-label="Village interactions"></nav>
+    <dialog class="bottle-note" aria-label="A message from the backwaters" aria-describedby="bottle-message">
+      <form method="dialog"><button class="note-close" aria-label="Close note" autofocus>×</button></form>
+      <p id="bottle-message"></p>
+      <span class="note-signature" aria-hidden="true">From the backwaters</span>
+    </dialog>
     <main>
       <div class="headline"><h1><button class="headline-trigger" type="button" lang="en" aria-label="God’s own country is cooking something. Click to change language.">God’s own country is cooking something.</button></h1></div>
       <DinoGame />
@@ -59,10 +64,23 @@ import DinoGame from '../components/DinoGame.astro';
 
   const canvas = document.querySelector<HTMLCanvasElement>('.kerala-scene')!;
   const headline = document.querySelector<HTMLButtonElement>('.headline-trigger')!;
+  const noteDialog = document.querySelector<HTMLDialogElement>('.bottle-note')!;
+  const bottleButton = document.createElement('button');
+  bottleButton.type = 'button';
+  bottleButton.className = 'scene-shortcut';
+  bottleButton.textContent = 'Read the message in the drifting bottle';
+  bottleButton.hidden = true;
   const houseButtons: HTMLButtonElement[] = [];
   const scene = createKeralaScene(canvas, {
     backgroundUrl: '/images/kerala-backwaters-clean.png',
     moonElement: document.querySelector<HTMLButtonElement>('.celestial')!,
+    onBottleAvailable(available) {
+      bottleButton.hidden = !available;
+    },
+    onBottleFound(note) {
+      document.querySelector('#bottle-message')!.textContent = note;
+      if (!noteDialog.open) noteDialog.showModal();
+    },
     onHouseChange(index, open) {
       const button = houseButtons[index];
       if (button) {
@@ -88,6 +106,15 @@ import DinoGame from '../components/DinoGame.astro';
     },
   });
   const villageControls = document.querySelector<HTMLElement>('.village-controls')!;
+  villageControls.append(bottleButton);
+  bottleButton.addEventListener('click', () => scene.openBottle());
+  noteDialog.addEventListener('keydown', (event) => event.stopPropagation());
+  noteDialog.addEventListener('close', () => canvas.focus({ preventScroll: true }));
+  noteDialog.addEventListener('click', (event) => {
+    if (event.target !== noteDialog) return;
+    const bounds = noteDialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) noteDialog.close();
+  });
   scene.houseLabels.forEach((label, index) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -164,6 +191,12 @@ import DinoGame from '../components/DinoGame.astro';
 </style>
 
 <style>
+  .bottle-note { position: fixed; inset: 0; width: min(370px, calc(100vw - 40px)); margin: auto; padding: 54px 34px 32px; border: 0; border-radius: 3px 9px 5px 2px; color: #3d4435; background: radial-gradient(ellipse at 12% 8%, #fffbed, transparent 75%), repeating-linear-gradient(3deg, #e8d8b70b 0 2px, transparent 2px 5px), #f4e8cc; box-shadow: 0 14px 65px #071d2259, inset 0 0 32px #bca07128; transform: rotate(-1.5deg); }
+  .bottle-note::backdrop { background: #0c272640; backdrop-filter: blur(3px); }
+  .bottle-note p { margin: 0 0 28px; font: 400 clamp(36px, 7vw, 43px)/1.13 'Birthstone', cursive; text-wrap: pretty; }
+  .note-signature { display: block; text-align: right; font: 400 25px/1.2 'Birthstone', cursive; opacity: .65; }
+  .note-close { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; border: 0; background: transparent; font: 27px/1 Arial, sans-serif; color: #5d6854; cursor: pointer; }
+  .note-close:focus-visible { outline: 1px solid #6c7c60; border-radius: 50%; outline-offset: -5px; }
   .landscape { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
   .landscape img { transition: filter .9s ease; width: 100%; height: 100%; object-fit: cover; object-position: center; }
   .kerala-scene { position: fixed; inset: 0; z-index: -1; display: block; width: 100%; height: 100%; cursor: crosshair; outline: none; touch-action: pan-y; }
