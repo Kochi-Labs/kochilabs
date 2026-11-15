@@ -66,6 +66,7 @@ export function createHouseboat(): THREE.Group {
   const light = paint(palette.bambooLight);
   const shade = paint(palette.bambooShade);
   const darkWindow = paint(palette.glass);
+  darkWindow.userData.nightGlow = true;
 
   // A long canoe hull with the upward-sweeping bow and stern of a kettuvallam.
   const hull = new THREE.Shape();
@@ -173,6 +174,7 @@ export function createMetro(): THREE.Group {
   const cream = paint(palette.cream);
   const teal = paint(palette.aqua);
   const glass = paint('#345e63');
+  glass.userData.nightGlow = true;
   const trim = paint('#6e8b80');
   const gold = paint(palette.ochre);
   const undercarriage = paint('#526260');

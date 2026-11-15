@@ -33,6 +33,8 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 
 ## Scene interactions
 
+- Double-click the illustrated sun to turn it into a crescent moon and enter night: a starry sky, moonlit scenery, warm boat and metro windows, and a light-colored game. Double-click the moon to restore daylight. Double-tap works on touch screens; Enter or Space works with the sun/moon focused.
+
 - Click the water to send out waves and float a lotus. The boat responds to wave heights sampled beneath its bow and stern.
 - Drag the houseboat horizontally; release it to let its momentum settle. Tap it for a gentle rocking motion.
 - The illustrated metro runs across its viaduct. Tap it for a temporary speed boost.

@@ -8,6 +8,7 @@ export type KeralaSceneController = {
   nudgeBoat(): void;
   releaseBirds(): void;
   setScroll(progress: number): void;
+  setNight(enabled: boolean): void;
 };
 
 type SceneOptions = { backgroundUrl: string; onReady?: (supported: boolean) => void };
@@ -28,6 +29,7 @@ const waterFragment = `
 uniform sampler2D uBackdrop;
 uniform float uTime;
 uniform float uAmbient;
+uniform float uNight;
 uniform vec4 uWaves[10];
 varying vec2 vUv;
 varying vec2 vWorld;
@@ -52,13 +54,15 @@ void main() {
   vec3 color = texture2D(uBackdrop, clamp(vUv + displacement * water, vec2(.002), vec2(.998))).rgb;
   color += vec3(.76, .89, .72) * max(highlight, 0.0) * water;
   color -= vec3(.12, .23, .18) * max(-highlight, 0.0) * water;
+  vec3 moonlit = color * vec3(.045, .075, .17) + vec3(.003, .006, .018);
+  color = mix(color, moonlit, uNight);
   gl_FragColor = vec4(color, 1.0);
   #include <colorspace_fragment>
 }`;
 
 /** A transparent WebGL layer; the caller's painted background remains the fallback. */
 export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptions): KeralaSceneController {
-  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {} };
+  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setNight() {} };
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
@@ -81,6 +85,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let ready = false;
   let failed = false;
   let time = 0;
+  let night = 0;
+  let nightTarget = 0;
   let previousTime = 0;
   let accumulator = 0;
   let animationFrame = 0;
@@ -102,7 +108,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   const waveVectors = Array.from({ length: MAX_WAVES }, () => new THREE.Vector4(0, 0, -100, 0));
   const backgroundMaterial = new THREE.ShaderMaterial({
-    uniforms: { uBackdrop: { value: null }, uTime: { value: 0 }, uAmbient: { value: reducedMotion ? 0 : 1 }, uWaves: { value: waveVectors } },
+    uniforms: { uBackdrop: { value: null }, uNight: { value: 0 }, uTime: { value: 0 }, uAmbient: { value: reducedMotion ? 0 : 1 }, uWaves: { value: waveVectors } },
     vertexShader: waterVertex,
     fragmentShader: waterFragment,
     depthWrite: false,
@@ -149,6 +155,20 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   const lotuses: Lotus[] = [];
   const birds: Bird[] = [];
   const ownedTextures = new Set<THREE.Texture>();
+
+  // Store original colors once so repeated day/night switches are reversible.
+  const nightMaterials = new Map<THREE.MeshBasicMaterial, { day: THREE.Color; night: THREE.Color }>();
+  const moonTint = new THREE.Color('#758bc4').multiplyScalar(.55);
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!(material instanceof THREE.MeshBasicMaterial) || nightMaterials.has(material)) continue;
+      const day = material.color.clone();
+      const afterDark = material.userData.nightGlow ? new THREE.Color('#ffd58c') : day.clone().multiply(moonTint);
+      nightMaterials.set(material, { day, night: afterDark });
+    }
+  });
 
   function disposeObject(object: THREE.Object3D) {
     const geometries = new Set<THREE.BufferGeometry>();
@@ -308,6 +328,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   function simulate(dt: number) {
     time += dt;
+    night += (nightTarget - night) * Math.min(1, dt * 4);
+    if (reducedMotion) night = nightTarget;
     scroll += (scrollTarget - scroll) * Math.min(1, dt * 5);
     const waterY = -220 + scroll * 4;
     const leftHeight = sampleWaterHeight(boatX - 76, waterY, time, waves, !reducedMotion);
@@ -336,6 +358,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     reflection.scale.x = 1 + Math.sin(time * 1.1) * (reducedMotion ? 0 : .008);
     shadow.position.set(boatX, -224 + scroll * 4, 3);
     backgroundMaterial.uniforms.uTime!.value = time;
+    backgroundMaterial.uniforms.uNight!.value = night;
+    nightMaterials.forEach((colors, material) => material.color.lerpColors(colors.day, colors.night, night));
     for (let i = 0; i < MAX_WAVES; i++) {
       const wave = waves[i];
       if (wave) waveVectors[i]!.set(wave.x, wave.y, wave.born, wave.strength);
@@ -427,6 +451,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   return {
     splashAt,
+    setNight(enabled) { nightTarget = enabled ? 1 : 0; },
     nudgeBoat,
     releaseBirds,
     setScroll(progress) { scrollTarget = Number.isFinite(progress) ? THREE.MathUtils.clamp(progress, 0, 1) : 0; },
