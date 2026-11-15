@@ -1,0 +1,29 @@
+[
+  {
+    "file": "ambience-birds.mp3",
+    "author": "Audiobaaz911",
+    "source": "https://freesound.org/people/Audiobaaz911/sounds/690626/",
+    "download": "https://cdn.freesound.org/previews/690/690626_15050538-hq.mp3",
+    "license": "CC0-1.0",
+    "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "edits": "Excerpt, high-pass and low-pass filtering, loudness normalization, MP3 encoding; crossfaded at playback"
+  },
+  {
+    "file": "ambience-crickets.mp3",
+    "author": "Speziax",
+    "source": "https://freesound.org/people/Speziax/sounds/645329/",
+    "download": "https://cdn.freesound.org/previews/645/645329_988367-hq.mp3",
+    "license": "CC0-1.0",
+    "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "edits": "Excerpt, high-pass and low-pass filtering, loudness normalization, MP3 encoding; crossfaded at playback"
+  },
+  {
+    "file": "ambience-water.mp3",
+    "author": "SoundsLikeYukon",
+    "source": "https://freesound.org/people/SoundsLikeYukon/sounds/758708/",
+    "download": "https://cdn.freesound.org/previews/758/758708_1544275-hq.mp3",
+    "license": "CC0-1.0",
+    "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "edits": "Excerpt, high-pass and low-pass filtering, loudness normalization, MP3 encoding; crossfaded at playback"
+  }
+]

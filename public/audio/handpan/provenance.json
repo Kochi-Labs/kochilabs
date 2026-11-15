@@ -1,0 +1,199 @@
+{
+  "title": "Hang tuned in D minor",
+  "version": "2022-03-30",
+  "performer": "Mar",
+  "recordists": [
+    "Gonzalo",
+    "Roberto"
+  ],
+  "editor": "Roberto",
+  "recording": "July 2017, Medialab-Prado auditorium, Madrid, Spain; Zoom H1",
+  "sourcePage": "https://freepats.zenvoid.org/ChromaticPercussion/hang.html",
+  "sourceArchive": "https://github.com/freepats/hang-D-minor/releases/download/2022-03-30/Hang-D-minor-SFZ%2BFLAC-20220330.7z",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "modifications": "Selected two recorded takes per note; applied uniform -3 dB headroom, 2 ms fade-in and 120 ms end fade; encoded stereo 44.1 kHz 192 kbps MP3. No pitch shifting, synthesis, looping, time stretching, or added reverb.",
+  "playback": "Play at original pitch (playbackRate 1); all notes have sympathetic D-minor resonances. Sustain tails overlap naturally.",
+  "assets": [
+    {
+      "file": "/audio/handpan/A3-1.mp3",
+      "note": "A3",
+      "midi": 57,
+      "take": 1,
+      "durationSeconds": 2.044,
+      "bytes": 50826,
+      "sourceFile": "A3_01.flac",
+      "sha256": "8f96801f8e97f7b2fe98727ca502a5ef21bcb370e38450931338f4f53d439fd1"
+    },
+    {
+      "file": "/audio/handpan/A3-2.mp3",
+      "note": "A3",
+      "midi": 57,
+      "take": 2,
+      "durationSeconds": 3.3346,
+      "bytes": 81546,
+      "sourceFile": "A3_02.flac",
+      "sha256": "4b9d8a3fcf81bb030cdb3f834e755c06bb14d1bc1e2220a856bf0082026a37fc"
+    },
+    {
+      "file": "/audio/handpan/D4-1.mp3",
+      "note": "D4",
+      "midi": 62,
+      "take": 1,
+      "durationSeconds": 3.3143,
+      "bytes": 80919,
+      "sourceFile": "D4_01.flac",
+      "sha256": "818ed63d76bf19b7991d517100dccf8f5c65c4692ab3573d8030de01dc9ccbda"
+    },
+    {
+      "file": "/audio/handpan/D4-2.mp3",
+      "note": "D4",
+      "midi": 62,
+      "take": 2,
+      "durationSeconds": 2.6282,
+      "bytes": 64618,
+      "sourceFile": "D4_02.flac",
+      "sha256": "0551e314c810a6a8fe802bfb5339b56299da1a96c69747e99c745d91e4444352"
+    },
+    {
+      "file": "/audio/handpan/E4-1.mp3",
+      "note": "E4",
+      "midi": 64,
+      "take": 1,
+      "durationSeconds": 4.1041,
+      "bytes": 100354,
+      "sourceFile": "E4_01.flac",
+      "sha256": "cbce58d19a83191d72913c766b4a30a1cc9dd17be8bd3edef485d71fccac6cec"
+    },
+    {
+      "file": "/audio/handpan/E4-2.mp3",
+      "note": "E4",
+      "midi": 64,
+      "take": 2,
+      "durationSeconds": 4.2318,
+      "bytes": 102862,
+      "sourceFile": "E4_02.flac",
+      "sha256": "77c652738d6020dc1041de8755651f732b16721ae8734e2eae71a59626c55b58"
+    },
+    {
+      "file": "/audio/handpan/F4-1.mp3",
+      "note": "F4",
+      "midi": 65,
+      "take": 1,
+      "durationSeconds": 3.6629,
+      "bytes": 89696,
+      "sourceFile": "F4_01.flac",
+      "sha256": "189b611510099012e3d27364c611c477885b04a208581036bdbd4ad8333ecb48"
+    },
+    {
+      "file": "/audio/handpan/F4-2.mp3",
+      "note": "F4",
+      "midi": 65,
+      "take": 2,
+      "durationSeconds": 3.1434,
+      "bytes": 77157,
+      "sourceFile": "F4_02.flac",
+      "sha256": "e0d901481afe59155638dc344a8f1883acdb908e490ba3f3cd3c750c74dfd29b"
+    },
+    {
+      "file": "/audio/handpan/G4-1.mp3",
+      "note": "G4",
+      "midi": 67,
+      "take": 1,
+      "durationSeconds": 2.433,
+      "bytes": 60230,
+      "sourceFile": "G4_01.flac",
+      "sha256": "aacad05e5ea14a29a30d7597b782ac1e0293c4d71f9308993a56125249ca14b4"
+    },
+    {
+      "file": "/audio/handpan/G4-2.mp3",
+      "note": "G4",
+      "midi": 67,
+      "take": 2,
+      "durationSeconds": 2.7385,
+      "bytes": 67126,
+      "sourceFile": "G4_02.flac",
+      "sha256": "3bce8e2aec9b9a7db053ab9a31aa36a865cc6a3e8f8388e65485e21643723a57"
+    },
+    {
+      "file": "/audio/handpan/A4-1.mp3",
+      "note": "A4",
+      "midi": 69,
+      "take": 1,
+      "durationSeconds": 3.7268,
+      "bytes": 90950,
+      "sourceFile": "A4_01.flac",
+      "sha256": "197e1b017f53ea8ff0e21b6a884595d949f224e62baebe6f91b53570842d4836"
+    },
+    {
+      "file": "/audio/handpan/A4-2.mp3",
+      "note": "A4",
+      "midi": 69,
+      "take": 2,
+      "durationSeconds": 3.0418,
+      "bytes": 74649,
+      "sourceFile": "A4_02.flac",
+      "sha256": "820bd80898aa7b87189788ae04e6fb7ad5257806b041d85a59361d693703da32"
+    },
+    {
+      "file": "/audio/handpan/Bb4-1.mp3",
+      "note": "Bb4",
+      "midi": 70,
+      "take": 1,
+      "durationSeconds": 2.4584,
+      "bytes": 60857,
+      "sourceFile": "Bb4_01.flac",
+      "sha256": "93aae15df219d64d718086019df0c7c368018180382c4c8b721d24742dd1c430"
+    },
+    {
+      "file": "/audio/handpan/Bb4-2.mp3",
+      "note": "Bb4",
+      "midi": 70,
+      "take": 2,
+      "durationSeconds": 2.679,
+      "bytes": 65872,
+      "sourceFile": "Bb4_02.flac",
+      "sha256": "b3968fedda04e73deb2923dd44649cb8e84bc6db1ea05d1196f578362732b0d2"
+    },
+    {
+      "file": "/audio/handpan/C5-1.mp3",
+      "note": "C5",
+      "midi": 72,
+      "take": 1,
+      "durationSeconds": 2.7922,
+      "bytes": 68380,
+      "sourceFile": "C5_01.flac",
+      "sha256": "892b1c1e05199251c36b1d8da0d093e4c1bc4685d4c3f94847e91c78add7e250"
+    },
+    {
+      "file": "/audio/handpan/C5-2.mp3",
+      "note": "C5",
+      "midi": 72,
+      "take": 2,
+      "durationSeconds": 3.3001,
+      "bytes": 80919,
+      "sourceFile": "C5_02.flac",
+      "sha256": "5364b9e08de0405744e341a59a102e366c5d5d0b7cf544e451ebc8d165938887"
+    },
+    {
+      "file": "/audio/handpan/D5-1.mp3",
+      "note": "D5",
+      "midi": 74,
+      "take": 1,
+      "durationSeconds": 2.65,
+      "bytes": 65245,
+      "sourceFile": "D5_01.flac",
+      "sha256": "1c1a82f6975369bfe073fbdf749eba31d368ab298291b786785c6b8292a1c2ec"
+    },
+    {
+      "file": "/audio/handpan/D5-2.mp3",
+      "note": "D5",
+      "midi": 74,
+      "take": 2,
+      "durationSeconds": 2.9823,
+      "bytes": 73395,
+      "sourceFile": "D5_02.flac",
+      "sha256": "a84002d4b70b012fdbbf4941168f1c3ce0b60fbcc7edd70978b2d4d097c55c6d"
+    }
+  ]
+}

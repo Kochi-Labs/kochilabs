@@ -63,6 +63,8 @@ Click any metro carriage once to ignite only the last carriage. Rain arrives aft
 
 ## Soundscape
 
-The logo demo has been removed. A small speaker control enables or mutes an original, synthesized handpan-style melody and gentle material sounds for water, the houseboat, palms, windows, coconuts, birds, the bottle and leaf note, and the dinosaur game. Rain and fire have quiet ambient beds. All audio is generated locally with Web Audio; no recordings or remote audio assets are required.
+The logo demo has been removed. A small speaker control enables or mutes a slow original melody played with real recorded handpan strikes. Two takes per note, original pitch, subtle touch differences, and generous pauses retain the instrument's natural resonance. Every interaction uses recorded material sounds: water, wood, leaves, cork, paper, and footsteps; the game and day/night transitions use those same recordings instead of synthetic beeps.
 
-Audio begins with the first pointer or supported keyboard interaction. Muting is remembered, hidden tabs suspend audio, and returning requires another interaction to resume. `src/lib/soundscape.ts` owns synthesis, mixing, effect throttling, and cleanup.
+Quiet shoreline water continues through day and night. Indian wetland bird recordings fade into crickets at night; rain and fire recordings follow the metro sequence. Overlapping, faded excerpts conceal loop seams. All recordings are hosted locally under `public/audio/`, with source URLs, authors, licenses, and processing notes in the provenance JSON files. No third-party audio requests occur during playback.
+
+Audio loads on the first pointer or supported keyboard interaction. Muting is remembered, hidden tabs suspend audio, and returning requires another interaction to resume. `src/lib/soundscape.ts` owns sample playback, mixing, effect throttling, and cleanup. The handpan source is the CC0 FreePats D-minor Hang bank; nature and Foley source credits are retained alongside their audio files.
