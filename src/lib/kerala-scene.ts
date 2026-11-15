@@ -58,8 +58,8 @@ void main() {
   color -= vec3(.12, .23, .18) * max(-highlight, 0.0) * water;
   vec3 moonlit = color * vec3(.045, .075, .17) + vec3(.003, .006, .018);
   color = mix(color, moonlit, uNight);
-  // Sample moonlight through exactly the same displacement field as the water.
-  // A click therefore refracts the crescent and breaks up its light path together.
+  // Both reflections sample the water's displacement field. A click refracts
+  // the sun or crescent and breaks up its light path together.
   vec2 reflected = vWorld + displacement * vec2(1720.0, 1075.0);
   reflected.x += sin(reflected.y * .23 + uTime * .65 * uAmbient) * 2.2;
   float moonY = -242.0 - uScroll * 16.0;
@@ -76,6 +76,14 @@ void main() {
   float bands = pow(.5 + .5 * sin(reflected.y * .29 + sin(reflected.y * .071) * 2.0 + uTime * .55 * uAmbient), 9.0);
   float glimmer = crescent * (.25 + bands * .22) + path * taper * (.012 + bands * .07);
   color += vec3(.95, .84, .55) * glimmer * water * uNight;
+  // The sun is 25/31 the moon's radius in the sky illustration. Its warm,
+  // full-disc reflection crossfades to the crescent when night falls.
+  vec2 sunPoint = crescentPoint * (31.0 / 25.0);
+  float sunDistance = length(sunPoint);
+  float sunDisc = 1.0 - smoothstep(.82, 1.12, sunDistance);
+  float sunHalo = exp(-sunDistance * sunDistance * .7) * .045;
+  float sunlight = sunDisc * (.32 + bands * .23) + sunHalo + path * taper * (.018 + bands * .12);
+  color += vec3(1.0, .63, .18) * sunlight * water * (1.0 - uNight);
   gl_FragColor = vec4(color, 1.0);
   #include <colorspace_fragment>
 }`;

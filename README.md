@@ -33,6 +33,8 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 
 ## Scene interactions
 
+- In daylight, the sun casts a warm disc and shimmering light path onto the water. Click-generated waves distort both the sun and moon reflections; switching day/night smoothly blends between them.
+
 - At night, fireflies drift and glow near the banks. The crescent moon and its broken light path reflect on the water through the same wave displacement used by water clicks. Reduced motion stops firefly drifting and pulsing.
 
 - Double-click the illustrated sun to turn it into a crescent moon and enter night: a starry sky, moonlit scenery, warm boat and metro windows, and a light-colored game. Double-click the moon to restore daylight. Double-tap works on touch screens; Enter or Space works with the sun/moon focused.
