@@ -5,6 +5,7 @@ import { createVillageHouses } from './village-houses';
 import { createLivingFoliage, foliageShaderUniforms, foliageShaderFunction } from './living-foliage';
 import { createLuxuryHouseboat } from './luxury-houseboat';
 import { createBoatWater } from './boat-water';
+import { SKY_DRIFT_GLSL } from './sky-drift';
 import { createMetro, createViaduct, createLotus } from './scene-models';
 import { MAX_WAVES, WAVE_LIFETIME, sampleWaterHeight as sampleWaveHeight, springStep, type WaterImpulse } from './water-physics';
 
@@ -43,8 +44,10 @@ uniform float uNight;
 varying vec2 vUv;
 ${foliageShaderUniforms}
 ${foliageShaderFunction}
+${SKY_DRIFT_GLSL}
 void main() {
   vec3 color = texture2D(uBackdrop, swayFoliage(vUv)).rgb;
+  color = driftPaintedClouds(vUv, color);
   vec3 moonlit = color * vec3(.045, .075, .17) + vec3(.003, .006, .018);
   gl_FragColor = vec4(mix(color, moonlit, uNight), 1.0);
   #include <colorspace_fragment>
@@ -75,6 +78,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let ready = false;
   let failed = false;
   let time = 0;
+  let cloudTime = 0;
   let night = 0;
   let nightTarget = 0;
   let previousTime = 0;
@@ -119,7 +123,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   const river = createRiverSurface();
   const celestialReflection = new THREE.Vector2(250, 31);
   const backgroundMaterial = new THREE.ShaderMaterial({
-    uniforms: { ...foliage.uniforms, uBackdrop: { value: null }, uNight: { value: 0 } },
+    uniforms: { ...foliage.uniforms, uBackdrop: { value: null }, uNight: { value: 0 }, uCloudTime: { value: 0 }, uCloudMotion: { value: reducedMotion ? 0 : 1 } },
     vertexShader: waterVertex,
     fragmentShader: backgroundFragment,
     depthWrite: false,
@@ -424,6 +428,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function simulate(dt: number) {
+    if (!reducedMotion) cloudTime += dt;
     time += dt;
     night += (nightTarget - night) * Math.min(1, dt * 4);
     if (reducedMotion) night = nightTarget;
@@ -476,6 +481,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     luxuryBoat.lighting.position.copy(boat.position);
     luxuryBoat.update(time, night, reducedMotion);
     backgroundMaterial.uniforms.uNight!.value = night;
+    backgroundMaterial.uniforms.uCloudTime!.value = cloudTime;
+    backgroundMaterial.uniforms.uCloudMotion!.value = reducedMotion ? 0 : 1;
     river.update({ time, waves, night, ambient: !reducedMotion, scroll, moon: celestialReflection });
     fireflies.visible = night > .005;
     fireflies.position.y = -scroll * 12;

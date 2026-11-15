@@ -12,6 +12,20 @@ export function createLuxuryHouseboat() {
   const originals = new Set<THREE.Material>();
   const replacements = new Map<THREE.Material, THREE.MeshStandardMaterial>();
   const windows: THREE.MeshStandardMaterial[] = [];
+  // Sun-faded paint and pale woven palm retain the old working-boat character.
+  const agedPalette: Record<string, string> = {
+    '514638': '#79b5a4', // Old seafoam hull and veranda posts.
+    'a18753': '#c9ac70', // Warm rubbed timber along the gunwale.
+    'c5a367': '#e2cca0', // Pale honey cabin matting.
+    'e4c98a': '#f2e4b8', // Ivory bamboo frames and roof courses.
+    'a68851': '#b79a65', // Weathered ribs and window surrounds.
+    '95805b': '#d6c28c',
+    '9b8159': '#c4a574',
+    'dfc88f': '#e5d8ac',
+    '537a6b': '#8eb9aa',
+  };
+  const roofBleach = new THREE.Color('#f2dfae');
+  const roofColor = new THREE.Color();
 
   function surfaceDetail(material: THREE.MeshStandardMaterial, woven: boolean) {
     material.onBeforeCompile = shader => {
@@ -21,10 +35,16 @@ export function createLuxuryHouseboat() {
       const texture = woven
         ? 'float grain=sin(vBoatLocal.x*4.3)*sin((vBoatLocal.y+vBoatLocal.z)*4.5)*.075+sin(vBoatLocal.x*.47)*.025;'
         : 'float grain=sin(vBoatLocal.y*5.8+vBoatLocal.z*.7+sin(vBoatLocal.x*.095)*1.8)*.055+sin(vBoatLocal.y*11.7+vBoatLocal.x*.02)*.02;';
-      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>\n${texture}\ndiffuseColor.rgb*=.97+grain;`);
+      const weathering = woven ? '' : `
+        float paintWear = smoothstep(.86,.98,.5+.5*sin(vBoatLocal.x*.39+sin(vBoatLocal.y*2.1))*sin(vBoatLocal.y*3.7+vBoatLocal.x*.04));
+        float oldWaterline = 1.0-smoothstep(-7.0,3.0,vBoatLocal.y);
+        diffuseColor.rgb = mix(diffuseColor.rgb,vec3(.30,.21,.11),paintWear*.24);
+        diffuseColor.rgb *= 1.0-oldWaterline*.12;
+      `;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>\n${texture}\ndiffuseColor.rgb*=.97+grain;\n${weathering}`);
       shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal=normalize(normal-vec3(dFdx(grain),dFdy(grain),0.0)*.6);');
     };
-    material.customProgramCacheKey = () => `traditional-boat-${woven ? 'woven' : 'wood'}-1`;
+    material.customProgramCacheKey = () => `traditional-boat-${woven ? 'woven' : 'weathered-paint'}-2`;
   }
 
   // Reuse every part of the earlier design: curved roof, arched windows,
@@ -32,16 +52,27 @@ export function createLuxuryHouseboat() {
   group.traverse(object => {
     if (!(object instanceof THREE.Mesh)) return;
     geometries.add(object.geometry);
+    // The old curved roof carries its colour per vertex; keep that variation
+    // while bleaching it toward the light palm fibres of an aged canopy.
+    const vertexColors = object.geometry.getAttribute('color');
+    if (vertexColors) {
+      for (let i = 0; i < vertexColors.count; i++) {
+        roofColor.fromBufferAttribute(vertexColors, i).lerp(roofBleach, .48);
+        vertexColors.setXYZ(i, roofColor.r, roofColor.g, roofColor.b);
+      }
+      vertexColors.needsUpdate = true;
+    }
     const convert = (original: THREE.Material) => {
       originals.add(original);
       const cached = replacements.get(original);
       if (cached) return cached;
       const source = original as THREE.MeshBasicMaterial;
       const isWindow = Boolean(source.userData.nightGlow);
-      const darkWood = source.color.getHexString() === '514638';
+      const sourceHex = source.color.getHexString();
+      const darkWood = sourceHex === '514638';
       const material = new THREE.MeshStandardMaterial({
-        color: source.color, vertexColors: source.vertexColors,
-        roughness: isWindow ? .18 : darkWood ? .48 : .86,
+        color: agedPalette[sourceHex] ?? source.color, vertexColors: source.vertexColors,
+        roughness: isWindow ? .18 : darkWood ? .71 : .86,
         metalness: isWindow ? .15 : 0,
         side: source.side,
       });
@@ -59,7 +90,7 @@ export function createLuxuryHouseboat() {
   originals.forEach(material => material.dispose());
 
   // Fine planking follows the old hull's rise instead of changing its outline.
-  const seams = new THREE.MeshStandardMaterial({ color: '#322b21', roughness: .82 });
+  const seams = new THREE.MeshStandardMaterial({ color: '#44766a', roughness: .85 });
   materials.add(seams);
   for (const y of [-6, -1, 4]) {
     const curve = new THREE.CatmullRomCurve3([

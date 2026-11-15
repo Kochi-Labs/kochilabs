@@ -1,4 +1,6 @@
 import type { HEADLINE_LANGUAGES } from './headline-languages';
+import { createHangingGlassBottle } from './hanging-glass-bottle';
+import { createPalmLeafScroll } from './palm-leaf-scroll';
 
 type Language = typeof HEADLINE_LANGUAGES[number];
 const messages = {
@@ -13,6 +15,10 @@ const messages = {
 export function installHangingBottle(headline: HTMLButtonElement, bottle: HTMLButtonElement, dialog: HTMLDialogElement) {
   const parent = headline.closest<HTMLElement>('.headline')!;
   const message = dialog.querySelector<HTMLElement>('#bottle-message')!;
+  const leafCanvas = dialog.querySelector<HTMLCanvasElement>('.leaf-scroll-canvas')!;
+  const leaf = createPalmLeafScroll(leafCanvas);
+  if (leaf) dialog.dataset.scroll = 'ready';
+  const disposeGlass = createHangingGlassBottle(bottle);
   let language: Language['lang'] = 'en';
   let frame = 0;
   let destroyed = false;
@@ -51,8 +57,19 @@ export function installHangingBottle(headline: HTMLButtonElement, bottle: HTMLBu
   function open() {
     message.textContent = messages[language][0];
     message.lang = language;
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+      dialog.showModal();
+      leaf?.open(messages[language][0], language);
+    }
   }
+  let closing = false;
+  function close() {
+    if (!dialog.open || closing) return;
+    closing = true;
+    const done = () => { dialog.close(); closing = false; };
+    if (leaf) leaf.close(done); else done();
+  }
+  function requestClose(event: Event) { event.preventDefault(); close(); }
   const resize = new ResizeObserver(schedulePosition);
   resize.observe(headline);
   resize.observe(parent);
@@ -60,7 +77,10 @@ export function installHangingBottle(headline: HTMLButtonElement, bottle: HTMLBu
   document.fonts.addEventListener('loadingdone', schedulePosition);
   document.fonts.ready.then(schedulePosition);
   bottle.addEventListener('click', open);
+  dialog.addEventListener('cancel', requestClose);
+  dialog.addEventListener('submit', requestClose);
   return {
+    close,
     setLanguage(next: Language) {
       language = next.lang;
       bottle.lang = language;
@@ -75,6 +95,10 @@ export function installHangingBottle(headline: HTMLButtonElement, bottle: HTMLBu
       window.removeEventListener('resize', schedulePosition);
       document.fonts.removeEventListener('loadingdone', schedulePosition);
       bottle.removeEventListener('click', open);
+      dialog.removeEventListener('cancel', requestClose);
+      dialog.removeEventListener('submit', requestClose);
+      leaf?.destroy();
+      disposeGlass();
     },
   };
 }
