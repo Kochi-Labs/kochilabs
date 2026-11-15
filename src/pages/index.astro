@@ -69,6 +69,9 @@ import DinoGame from '../components/DinoGame.astro';
       }
       document.querySelector('#village-status')!.textContent = `${scene.houseLabels[index]}: ${open ? 'windows open, lights on, a villager walks toward the shore' : 'windows closed, lights off, the villager returns home'}.`;
     },
+    onPassengerFound() {
+      document.querySelector('#village-status')!.textContent = 'You found the last metro passenger: a tiny dinosaur waves from the window.';
+    },
     onCoconutSplash() {
       document.querySelector('#village-status')!.textContent = 'A coconut splashes into the backwaters and floats.';
     },

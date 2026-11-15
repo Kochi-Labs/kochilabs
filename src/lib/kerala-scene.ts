@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createRiverSurface, riverContains } from './river-surface';
+import { createMetroPassenger } from './metro-passenger';
 import { createVillageHouses } from './village-houses';
 import { createLivingFoliage, foliageShaderUniforms, foliageShaderFunction } from './living-foliage';
 import { createHouseboat, createMetro, createViaduct, createLotus } from './scene-models';
@@ -17,7 +18,7 @@ export type KeralaSceneController = {
   shakePalm(): void;
 };
 
-type SceneOptions = { backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean) => void; onCoconutSplash?: () => void; onReady?: (supported: boolean) => void };
+type SceneOptions = { backgroundUrl: string; moonElement?: HTMLElement; onHouseChange?: (index: number, open: boolean) => void; onCoconutSplash?: () => void; onPassengerFound?: () => void; onReady?: (supported: boolean) => void };
 type Lotus = { group: THREE.Group; x: number; y: number; born: number; phase: number };
 type Bird = { group: THREE.Group; left: THREE.Mesh; right: THREE.Mesh; born: number; origin: THREE.Vector3; direction: number; phase: number };
 
@@ -86,7 +87,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let boatVelocityY = 0;
   let boatRoll = 0;
   let boatRollVelocity = 0;
-  let pointer: { id: number; x: number; y: number; worldX: number; boatX: number; dragging: boolean; target: 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null } | null = null;
+  let pointer: { id: number; x: number; y: number; worldX: number; boatX: number; dragging: boolean; target: 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null; lastCarriage?: boolean } | null = null;
   const oldCursor = canvas.style.cursor;
   const oldTouchAction = canvas.style.touchAction;
   canvas.style.touchAction = 'pan-y';
@@ -215,6 +216,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   });
 
   scene.add(village.group, foliage.group);
+  const passenger = createMetroPassenger(train);
 
   function toggleHouse(index: number) {
     if (destroyed || index < 0 || index >= village.labels.length) return false;
@@ -250,7 +252,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     return raycaster.ray.intersectPlane(waterPlane, new THREE.Vector3());
   }
 
-  function impulse(x: number, y: number, strength = 14) {
+  function impulse(x: number, y: number, strength = 22) {
     const u = x / 1720 + .5;
     const v = (y - background.position.y) / 1075 + .5;
     if (!riverContains(u, v)) return;
@@ -315,11 +317,12 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     }
   }
 
-  function pick(clientX: number, clientY: number): { target: 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null } {
+  function pick(clientX: number, clientY: number): { target: 'boat' | 'train' | 'water' | 'house' | 'foliage' | 'other'; houseIndex: number | null; lastCarriage?: boolean } {
     const point = worldPoint(clientX, clientY);
     scene.updateMatrixWorld();
     if (raycaster.intersectObject(boat, true).length) return { target: 'boat', houseIndex: null };
-    if (raycaster.intersectObject(train, true).length) return { target: 'train', houseIndex: null };
+    const trainHit = raycaster.intersectObject(train, true)[0];
+    if (trainHit) return { target: 'train', houseIndex: null, lastCarriage: passenger.hitTest(trainHit.object) };
     if (point) {
       const uv = backdropPoint(point);
       const houseIndex = village.hitTest(uv.x, uv.y);
@@ -337,9 +340,9 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
 
   function onPointerDown(event: PointerEvent) {
     if (event.button !== 0 || !ready || pointer) return;
-    const { target, houseIndex } = pick(event.clientX, event.clientY);
+    const { target, houseIndex, lastCarriage } = pick(event.clientX, event.clientY);
     const point = worldPoint(event.clientX, event.clientY);
-    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target, houseIndex };
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target, houseIndex, lastCarriage };
     canvas.setPointerCapture(event.pointerId);
     if (target === 'boat') {
       canvas.style.cursor = 'grabbing';
@@ -376,7 +379,11 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       } else if (tap) nudgeBoat();
       canvas.style.cursor = 'grab';
     } else if (current.target === 'water' && tap) splashAt(event.clientX, event.clientY);
-    else if (current.target === 'train' && tap) trainBoost = 3.5;
+    else if (current.target === 'train' && tap) {
+      if (current.lastCarriage) {
+        if (passenger.tap()) options.onPassengerFound?.();
+      } else trainBoost = 3.5;
+    }
     else if (current.target === 'house' && tap && current.houseIndex !== null) toggleHouse(current.houseIndex);
     else if (current.target === 'foliage' && tap) {
       const point = worldPoint(event.clientX, event.clientY);
@@ -433,14 +440,20 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     if (reducedMotion) night = nightTarget;
     scroll += (scrollTarget - scroll) * Math.min(1, dt * 5);
     village.update(dt, night, reducedMotion);
+    passenger.update(dt, night, reducedMotion);
     foliage.update(dt, time, night, reducedMotion);
     const waterY = -220 + scroll * 4;
     const leftHeight = sampleWaterHeight(boatX - 76, waterY, time, waves, !reducedMotion, background.position.y);
     const rightHeight = sampleWaterHeight(boatX + 76, waterY, time, waves, !reducedMotion, background.position.y);
-    [boatX, boatVelocityX] = springStep(boatX, boatVelocityX, boatTargetX, 22, 8, dt);
-    [boatY, boatVelocityY] = springStep(boatY, boatVelocityY, waterY + (leftHeight + rightHeight) / 2, 19, 5.7, dt);
+    const centerHeight = sampleWaterHeight(boatX, waterY, time, waves, !reducedMotion, background.position.y);
+    const midLeft = sampleWaterHeight(boatX - 38, waterY, time, waves, !reducedMotion, background.position.y);
+    const midRight = sampleWaterHeight(boatX + 38, waterY, time, waves, !reducedMotion, background.position.y);
+    const heave = (leftHeight + rightHeight + centerHeight * 2 + midLeft + midRight) / 6;
+    const surge = pointer?.target === 'boat' ? 0 : THREE.MathUtils.clamp((leftHeight - rightHeight) * 1.5, -9, 9);
+    [boatX, boatVelocityX] = springStep(boatX, boatVelocityX, clampBoatX(boatTargetX + surge), 22, 8, dt);
+    [boatY, boatVelocityY] = springStep(boatY, boatVelocityY, waterY + heave, 42, 8, dt);
     const angle = Math.atan2(rightHeight - leftHeight, 152) - THREE.MathUtils.clamp(boatVelocityX * .00012, -.025, .025);
-    [boatRoll, boatRollVelocity] = springStep(boatRoll, boatRollVelocity, angle, 22, 6, dt);
+    [boatRoll, boatRollVelocity] = springStep(boatRoll, boatRollVelocity, angle, 38, 7, dt);
     trainBoost = Math.max(0, trainBoost - dt);
     if (!reducedMotion || trainBoost > 0) train.position.x += dt * (trainBoost > 0 ? 150 : 39);
     const trainBoundary = viewWidth / 2 + 160;
@@ -586,6 +599,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       river.destroy();
       village.destroy();
       foliage.destroy();
+      passenger.destroy();
       disposeObject(scene);
       ownedTextures.forEach((owned) => owned.dispose());
       renderer.dispose();

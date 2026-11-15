@@ -81,7 +81,8 @@ vec2 swayFoliage(vec2 uv) {
 type Coconut = {
   mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
   x: number; y: number; vx: number; vy: number; waterY: number;
-  born: number; landed: number | null; radius: number; startRadius: number; startY: number; phase: number;
+  anchorX: number; anchorY: number; driftY: number;
+  born: number; landed: number | null; radius: number; startRadius: number; startY: number;
 };
 
 export type LivingFoliage = {
@@ -187,7 +188,7 @@ export function createLivingFoliage(options: { onSplash?: (u: number, v: number)
     const flightTime = Math.sqrt(Math.max(10, (y - waterY) * 2) / 245);
     const vx = ((targetU - .5) * 1600 - x) / flightTime + THREE.MathUtils.clamp(motion * 500, -12, 12);
     mesh.position.set(x, y, -27);
-    coconuts.push({ mesh, x, y, vx, vy: 0, waterY, born: clock, landed: null, radius, startRadius, startY: y, phase: Math.random() * Math.PI * 2 });
+    coconuts.push({ mesh, x, y, vx, vy: 0, waterY, anchorX: x, anchorY: waterY, driftY: 0, born: clock, landed: null, radius, startRadius, startY: y });
   }
 
   function move(u: number, v: number) {
@@ -291,22 +292,47 @@ export function createLivingFoliage(options: { onSplash?: (u: number, v: number)
           coconut.y = coconut.waterY;
           coconut.landed = clock;
           coconut.vx *= .12;
+          coconut.anchorX = coconut.x;
+          coconut.anchorY = coconut.waterY;
           options.onSplash?.(coconut.x / 1600 + .5, coconut.waterY / 1000 + .5);
         }
       } else {
         const afloat = clock - coconut.landed;
-        coconut.vx *= Math.exp(-step * .5);
+        const sample = (x: number, y: number) => {
+          const u = THREE.MathUtils.clamp(x / 1600 + .5, .001, .999);
+          const v = THREE.MathUtils.clamp(y / 1000 + .5, .001, riverShoreV(u) - .004);
+          const height = options.waterHeight?.(u, v) ?? 0;
+          return Number.isFinite(height) ? height : 0;
+        };
+        const span = Math.max(1.2, coconut.radius * 2);
+        // Sample the same wave that supports the hull: the coconut rides its
+        // height, rolls with its slope, and drifts a little down the wave face.
+        const slopeX = (sample(coconut.x + span, coconut.waterY) - sample(coconut.x - span, coconut.waterY)) / (span * 2);
+        const slopeY = (sample(coconut.x, coconut.waterY + span) - sample(coconut.x, coconut.waterY - span)) / (span * 2);
+        const response = reduced ? .2 : 1;
+        coconut.vx += (-slopeX * 55 * response - (coconut.x - coconut.anchorX) * .12) * step;
+        coconut.driftY += (-slopeY * 18 * response - (coconut.waterY - coconut.anchorY) * .2) * step;
+        coconut.vx = THREE.MathUtils.clamp(coconut.vx * Math.exp(-step * 1.3), -12, 12);
+        coconut.driftY = THREE.MathUtils.clamp(coconut.driftY * Math.exp(-step * 1.8), -4, 4);
         coconut.x += coconut.vx * step;
+        coconut.x = THREE.MathUtils.clamp(coconut.x, -784, 784);
+        coconut.waterY = THREE.MathUtils.clamp(coconut.waterY + coconut.driftY * step,
+          Math.max(-494, coconut.anchorY - 8),
+          Math.min(coconut.anchorY + 8, (riverShoreV(coconut.x / 1600 + .5) - .008 - .5) * 1000));
         const settle = Math.exp(-afloat * 2.4) * Math.cos(afloat * 8) * coconut.radius;
-        const surface = options.waterHeight?.(coconut.x / 1600 + .5, coconut.waterY / 1000 + .5) ?? 0;
+        const surface = sample(coconut.x, coconut.waterY);
         coconut.y = coconut.waterY - coconut.radius * .3 + settle + surface;
-        coconut.mesh.rotation.z = Math.sin(afloat + coconut.phase) * (reduced ? .02 : .13);
+        const tilt = THREE.MathUtils.clamp(Math.atan(slopeX) * 1.8 * response, -.45, .45);
+        coconut.mesh.rotation.z += (tilt - coconut.mesh.rotation.z) * (1 - Math.exp(-step * 12));
+        coconut.mesh.rotation.x = THREE.MathUtils.clamp(Math.atan(slopeY) * response, -.25, .25);
       }
       // Perspective scale changes with the flight toward the landing depth.
       const flight = coconut.landed === null
         ? THREE.MathUtils.clamp((coconut.startY - coconut.y) / Math.max(1, coconut.startY - coconut.waterY), 0, 1)
         : 1;
-      const apparentRadius = THREE.MathUtils.lerp(coconut.startRadius, coconut.radius, flight);
+      const floatingRadius = .55 + riverDepth(coconut.waterY / 1000 + .5) * 4.2;
+      const apparentRadius = coconut.landed === null
+        ? THREE.MathUtils.lerp(coconut.startRadius, coconut.radius, flight) : floatingRadius;
       coconut.mesh.scale.set(apparentRadius / coconut.radius, apparentRadius / coconut.radius * 1.14, 1);
       coconut.mesh.position.x = coconut.x;
       coconut.mesh.position.y = coconut.y;
