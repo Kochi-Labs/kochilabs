@@ -153,7 +153,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     text-shadow: 0 1px 2px #f3faffbd;
     pointer-events: none;
   }
-  :global(body[data-time="night"]) .site-header { --glass: rgb(20 38 54 / 24%); color: #fff5db; text-shadow: 0 1px 3px #081728; }
+  :global(body[data-time="night"]) .site-header, :global(body[data-deep-nav="true"]) .site-header { --glass: rgb(20 38 54 / 24%); color: #fff5db; text-shadow: 0 1px 3px #081728; }
   nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .controls { position: relative; display: flex; align-items: center; gap: clamp(6px, 1vw, 20px); }
   .dropdown .entries, #nav-search {

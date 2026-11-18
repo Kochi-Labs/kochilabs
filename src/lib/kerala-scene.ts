@@ -20,6 +20,7 @@ export type KeralaSceneController = {
   nudgeBoat(): void;
   releaseBirds(): void;
   setScroll(progress: number): void;
+  setSubmerged(submerged: boolean): void;
   setNight(enabled: boolean): void;
   houseLabels: readonly string[];
   toggleHouse(index: number): boolean;
@@ -58,7 +59,7 @@ void main() {
 
 /** A transparent WebGL layer; the caller's painted background remains the fallback. */
 export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptions): KeralaSceneController {
-  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setNight() {}, houseLabels: [], toggleHouse() { return false; }, shakePalm() {}, openBottle() {} };
+  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setSubmerged() {}, setNight() {}, houseLabels: [], toggleHouse() { return false; }, shakePalm() {}, openBottle() {} };
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
@@ -79,6 +80,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let reducedMotion = media.matches;
   let destroyed = false;
   let ready = false;
+  let submerged = false;
   let failed = false;
   let time = 0;
   let cloudTime = 0;
@@ -353,7 +355,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function onPointerDown(event: PointerEvent) {
-    if (event.button !== 0 || !ready || pointer) return;
+    if (event.button !== 0 || !ready || submerged || pointer) return;
     const { target, houseIndex, lastCarriage } = pick(event.clientX, event.clientY);
     const point = worldPoint(event.clientX, event.clientY);
     pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target, houseIndex, lastCarriage };
@@ -366,7 +368,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (!ready) return;
+    if (!ready || submerged) return;
     const hoverPoint = worldPoint(event.clientX, event.clientY);
     if (hoverPoint && pointer?.target !== 'boat') {
       const uv = backdropPoint(hoverPoint);
@@ -568,7 +570,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function animate(timestamp: number) {
-    if (destroyed || failed || document.hidden) return;
+    if (destroyed || failed || document.hidden || submerged) return;
     const dt = previousTime ? Math.min((timestamp - previousTime) / 1000, .04) : 0;
     previousTime = timestamp;
     if (ready) {
@@ -583,7 +585,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     cancelAnimationFrame(animationFrame);
     onPointerCancel();
     previousTime = 0;
-    if (!document.hidden && !destroyed && !failed) animationFrame = requestAnimationFrame(animate);
+    if (!document.hidden && !destroyed && !failed && !submerged) animationFrame = requestAnimationFrame(animate);
   }
   function onMotionChange() {
     reducedMotion = media.matches;
@@ -616,7 +618,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     backgroundMaterial.uniforms.uBackdrop!.value = loaded;
     river.setTexture(loaded);
     ready = true;
-    render();
+    if (!submerged && !document.hidden) render();
     options.onReady?.(true);
   }, undefined, () => {
     failed = true;
@@ -644,6 +646,12 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     nudgeBoat,
     releaseBirds,
     setScroll(progress) { scrollTarget = Number.isFinite(progress) ? THREE.MathUtils.clamp(progress, 0, 1) : 0; },
+    setSubmerged(value) {
+      if (submerged === value || destroyed) return;
+      submerged = value;
+      onVisibility();
+      if (submerged) options.onSoundMotion?.({ metroPan: 0, metroMoving: false, boatPan: soundPan(boatX), boatSpeed: 0, boatDragging: false });
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;

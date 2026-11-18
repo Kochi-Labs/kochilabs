@@ -1,0 +1,80 @@
+---
+const fish = [
+  { height: 31, size: 27, duration: 33, delay: -12 },
+  { height: 34, size: 22, duration: 33, delay: -11 },
+  { height: 32, size: 24, duration: 33, delay: -10 },
+  { height: 35, size: 19, duration: 33, delay: -9 },
+  { height: 64, size: 49, duration: 47, delay: -13 },
+  { height: 67, size: 34, duration: 47, delay: -12 },
+  { height: 80, size: 72, duration: 53, delay: -39 },
+];
+---
+<div class="descent">
+  <section class="dive-track" aria-labelledby="about-kochi-labs">
+    <div class="depth-stage">
+      <div class="waterline" aria-hidden="true"></div>
+      <div class="depth-view">
+        <img class="palace" src="/images/underwater-palace.webp" width="1672" height="941" loading="lazy" decoding="async"
+          alt="A submerged city of Kerala palaces, their windows glowing amber above a coral reef." />
+        <div class="deep-shade" aria-hidden="true"></div>
+        <div class="marine-life" aria-hidden="true">
+          {fish.map(({height, size, duration, delay}) => (
+            <span class="swimmer" style={`top:${height}%; --duration:${duration}s; --delay:${delay}s;`}>
+              <img src="/images/reef-fish.webp" alt="" loading="lazy" width={size} />
+            </span>
+          ))}
+          {Array.from({length: 16}, (_, i) => (
+            <i class="bubble" style={`left:${(i * 37 + 9) % 96}%; --size:${2 + i % 4}px; --duration:${8 + i % 7}s; --delay:-${1 + (i * 11) % 17}s;`}></i>
+          ))}
+        </div>
+        <div class="about-copy">
+          <h2 id="about-kochi-labs">About us</h2>
+          <p>Kochi Labs is a creative technology startup in Kerala. We bring code, illustration, and sound together to build places you can explore on the web.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<style>
+  .descent { padding-top: calc(100svh + 48px); pointer-events: none; }
+  .dive-track { height: 155svh; position: relative; z-index: 2; }
+  .depth-stage { position: sticky; top: 0; height: 100dvh; }
+  .waterline {
+    position: absolute; bottom: calc(100% - 1px); inset-inline: 0; height: 48px;
+    background: linear-gradient(transparent, rgb(44 124 143 / 18%) 30%, rgb(101 206 215 / 52%) 68%, #31778c 82%, #083e61);
+  }
+  .depth-view { position: absolute; inset: 0; overflow: hidden; isolation: isolate; background: #052440; color: #fff6df; pointer-events: auto; }
+  .palace { position: absolute; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; transform-origin: 37% 65%; transform: scale(var(--palace-scale, 1)); }
+  .deep-shade, .marine-life { position: absolute; inset: 0; pointer-events: none; }
+  .deep-shade { background: linear-gradient(180deg, #00142b65, transparent 17%), linear-gradient(90deg, transparent 53%, #001a354d 80%); }
+  .about-copy { position: absolute; top: 43%; right: 8%; width: min(29%, 360px); transform: translateY(-50%); opacity: var(--about-opacity, 1); }
+  h2 { margin: 0 0 .16em; font: 400 clamp(48px, 5vw, 82px)/1.04 Birthstone, cursive; color: #ffedcc; }
+  p { margin: 0; font: 450 clamp(15px, 1.15vw, 19px)/1.65 system-ui, sans-serif; text-wrap: pretty; }
+  .swimmer { position: absolute; left: 0; animation: swim var(--duration) linear infinite; animation-delay: var(--delay); }
+  .swimmer img { display: block; height: auto; opacity: .77; filter: brightness(.77) saturate(.79); animation: drift 3.6s ease-in-out infinite alternate; animation-delay: var(--delay); }
+  .bubble {
+    position: absolute; bottom: -12px; width: var(--size); height: var(--size); border-radius: 50%;
+    border: 1px solid #caeffc66; background: radial-gradient(circle at 35% 25%, #fff8, transparent 50%);
+    animation: rise var(--duration) linear infinite; animation-delay: var(--delay);
+  }
+  .marine-life :is(.swimmer, .swimmer img, .bubble) { animation-play-state: paused; }
+  :global(body[data-diving="true"]) .marine-life :is(.swimmer, .swimmer img, .bubble) { animation-play-state: running; }
+  @keyframes swim { from { transform: translateX(-85px); } to { transform: translateX(100vw); } }
+  @keyframes drift { from { transform: translateY(-3px) rotate(-2deg); } to { transform: translateY(3px) rotate(2deg); } }
+  @keyframes rise { from { transform: translate(0, 0); opacity: 0; } 15%, 78% { opacity: .7; } to { transform: translate(19px, -103svh); opacity: 0; } }
+  @media (max-aspect-ratio: 1/1) {
+    .palace { object-position: 34% center; }
+    .deep-shade { background: linear-gradient(180deg, #00142b65, transparent 18%, transparent 45%, #00172bda 82%, #001426ed); }
+    .about-copy { top: auto; bottom: max(9%, env(safe-area-inset-bottom)); width: min(78%, 350px); right: 7%; transform: none; }
+    h2 { font-size: clamp(45px, 8vw, 64px); }
+  }
+  @media (max-height: 460px) and (min-aspect-ratio: 1/1) {
+    .about-copy { top: 56%; width: 36%; right: 5%; }
+    h2 { font-size: 40px; } p { font-size: 14px; line-height: 1.45; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .marine-life { display: none; }
+    .palace { transform: none; }
+  }
+</style>

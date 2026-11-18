@@ -33,6 +33,8 @@ const EFFECT_FILES: Record<SoundEffect, string> = {
 export function createSoundscape(onState?: (state: SoundState) => void) {
   let context: AudioContext | undefined;
   let master: GainNode, music: GainNode, effects: GainNode;
+  let depthFilter: BiquadFilterNode | undefined;
+  let waterDepth = 0;
   let state: SoundState = 'waiting', muted = false, destroyed = false, night = false;
   let rain = 0, fire = 0, beat = 0, phrase = 0, lastTake = 0, nextNote = 0;
   let activation: Promise<void> | undefined, loading: Promise<void> | undefined;
@@ -51,6 +53,10 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   const abort = new AbortController();
   const report = (value: SoundState) => { state = value; onState?.(value); };
   const keep = <T extends AudioNode>(node: T): T => { nodes.add(node); return node; };
+  function depthCutoff() {
+    const surfaceHz = Math.min(22000, context!.sampleRate / 2);
+    return surfaceHz * Math.pow(550 / surfaceHz, waterDepth);
+  }
   function spatialPanner(x: number, y: number, z: number) {
     const panner = context!.createPanner();
     panner.panningModel = 'HRTF';
@@ -201,7 +207,11 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     const limiter = keep(context.createDynamicsCompressor());
     limiter.threshold.value = -15; limiter.knee.value = 18; limiter.ratio.value = 3;
     limiter.attack.value = .015; limiter.release.value = .35;
-    master.connect(limiter); limiter.connect(context.destination);
+    depthFilter = keep(context.createBiquadFilter());
+    depthFilter.type = 'lowpass';
+    depthFilter.Q.value = -3;
+    depthFilter.frequency.value = depthCutoff();
+    master.connect(depthFilter); depthFilter.connect(limiter); limiter.connect(context.destination);
     music = keep(context.createGain()); music.gain.value = .40;
     const warmth = keep(context.createBiquadFilter()); warmth.type = 'lowpass'; warmth.frequency.value = 3400; warmth.Q.value = .35;
     music.connect(warmth); warmth.connect(master);
@@ -331,6 +341,12 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     setRain(value: number) { rain = clamp(value); mixBeds(); },
     setFire(value: number) { fire = clamp(value); mixBeds(); },
     setNight(value: boolean) { night = value; mixBeds(); },
+    setDepth(progress: number) {
+      const depth = clamp(progress);
+      if (destroyed || depth === waterDepth) return;
+      waterDepth = depth;
+      if (context && depthFilter) depthFilter.frequency.setTargetAtTime(depthCutoff(), context.currentTime, .14);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true; ++activationVersion; activation = undefined; abort.abort(); stopScheduler();
