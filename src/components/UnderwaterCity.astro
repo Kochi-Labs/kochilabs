@@ -1,122 +1,97 @@
-<section class="depth-view" aria-labelledby="about-kochi-labs" inert>
-  <canvas class="city-canvas" tabindex="0" aria-label="Explore the submerged Kochi waterfront. Drag to look around, use W A S D to swim, or use the landmark selector. Tap buildings and marine life to interact."></canvas>
-  <div class="about-copy">
-    <h2 id="about-kochi-labs">About us</h2>
-    <p>Kochi Labs is a creative technology startup in Kerala. We bring code, illustration, and sound together to build places you can explore on the web.</p>
+---
+import WaterfrontLife from './WaterfrontLife.astro';
+const chapters = [
+  { title: 'About us', copy: 'Kochi Labs is a creative technology startup in Kerala. We bring code, illustration, and sound together to build places you can explore on the web.' },
+  { title: 'Our story', copy: 'A houseboat crossing the lake. A ferry pulling away from the jetty. Kochi is full of small moments worth a second look. This waterfront is our way of sharing them.' },
+  { title: 'Designers & engineers', copy: 'Picture a designer and an engineer at the same table. One sketches the wake behind a boat. The other makes it ripple when you touch the water. They try it together and adjust what feels off.' },
+  { title: 'What we build', copy: 'We turn sketches into working prototypes. Here, you can follow a houseboat by ear, send a ripple across the lake, or scatter a school of fish with a tap.' },
+];
+---
+<section class="depth-view" aria-label="Kochi Labs story" inert>
+  <div class="panorama-layer">
+    <img class="waterfront-art" data-src="/images/kochi-waterfront-panorama.webp" width="1859" height="846"
+      alt="A submerged Kochi waterfront with terraced glass buildings, coral gardens, a Water Metro terminal and an imagined Titanic wreck to the west." decoding="async" />
+    <WaterfrontLife />
   </div>
-  <div class="explore">
-    <span class="feedback" role="status" aria-live="polite"></span>
-    <div class="controls">
-      <label>
-        <span class="sr-only">Explore a city landmark</span>
-        <select aria-label="Explore a city landmark"><option value="-1">Waterfront overview</option></select>
-      </label>
-      <button type="button" class="activate" hidden></button>
-    </div>
-    <small>Drag to look around · Tap to interact</small>
+  <div class="story-shade" aria-hidden="true"></div>
+  <div class="story-copy">
+    {chapters.map((chapter, index) => (
+      <article class="chapter" aria-hidden={index !== 0} data-current={index === 0 ? 'true' : undefined}>
+        <h2>{chapter.title}</h2>
+        <p>{chapter.copy}</p>
+      </article>
+    ))}
   </div>
 </section>
 
 <script>
-  import type { createUnderwaterExplorer } from '../lib/underwater-explorer';
   const section = document.querySelector<HTMLElement>('.depth-view')!;
-  let canvas = section.querySelector<HTMLCanvasElement>('canvas')!;
-  const select = section.querySelector('select')!;
-  const action = section.querySelector<HTMLButtonElement>('.activate')!;
-  const feedback = section.querySelector<HTMLElement>('.feedback')!;
-  const actions = ['Light the tower', 'Dispatch train', 'Sail the ferry', 'Move cargo'];
-  let explorer: ReturnType<typeof createUnderwaterExplorer> | undefined;
-  let loading = false, disposed = false, progress = 0;
-  let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
+  const art = section.querySelector<HTMLImageElement>('.waterfront-art')!;
+  const chapters = Array.from(section.querySelectorAll<HTMLElement>('.chapter'));
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  let current = 0;
 
-  function report(message: string) {
-    clearTimeout(feedbackTimer);
-    feedback.textContent = message;
-    feedbackTimer = setTimeout(() => { feedback.textContent = ''; }, 4200);
-  }
-  async function loadExplorer() {
-    loading = true;
-    try {
-      const { createUnderwaterExplorer } = await import('../lib/underwater-explorer');
-      if (disposed) return;
-      explorer = createUnderwaterExplorer(canvas, report);
-    } catch {
-      if (disposed) return;
-      const { createWaterfrontFallback } = await import('../lib/waterfront-fallback');
-      if (disposed) return;
-      const replacement = canvas.cloneNode(false) as HTMLCanvasElement;
-      canvas.replaceWith(replacement); canvas = replacement;
-      explorer = createWaterfrontFallback(canvas, report);
+  function updateStory() {
+    const { body } = document;
+    section.inert = body.dataset.submerged !== 'true';
+    if (body.dataset.diving === 'true' && !art.hasAttribute('src')) art.src = art.dataset.src!;
+    const progress = Number(body.style.getPropertyValue('--story-progress')) || 0;
+    const chapter = Math.min(chapters.length - 1, Math.floor(progress * chapters.length));
+    if (chapter !== current) {
+      chapters[current].removeAttribute('data-current');
+      chapters[current].setAttribute('aria-hidden', 'true');
+      chapters[chapter].dataset.current = 'true';
+      chapters[chapter].setAttribute('aria-hidden', 'false');
+      current = chapter;
     }
-    explorer.stops.forEach((label,i) => select.add(new Option(label, String(i))));
-    sync();
+    const pan = motion.matches ? chapter / (chapters.length - 1) : progress;
+    section.style.setProperty('--pan', String(pan));
   }
-  function chooseStop() {
-    const index = Number(select.value);
-    explorer?.visit(index);
-    section.dataset.exploring = String(index >= 0);
-    action.hidden = index < 0;
-    action.textContent = actions[index] ?? '';
-    feedback.textContent = '';
-  }
-  select.addEventListener('change',chooseStop);
-  action.addEventListener('click',()=>explorer?.activate());
-
-  function sync() {
-    const active = document.body.dataset.diving === 'true';
-    section.inert = document.body.dataset.submerged !== 'true';
-    if (active && !explorer && !loading) void loadExplorer();
-    if (!active && select.value !== '-1') {select.value='-1';chooseStop();}
-    explorer?.setState(active,progress);
-  }
-  window.addEventListener('kochi:dive-depth', event=>{
-    progress = (event as CustomEvent<number>).detail;
-    sync();
-  });
-  progress = Number(document.body.style.getPropertyValue('--city-depth')) || 0;
-  sync();
-  window.addEventListener('pagehide',event=>{
-    if (!event.persisted) { disposed=true; clearTimeout(feedbackTimer); explorer?.destroy(); }
-  });
+  window.addEventListener('kochi:dive-depth', updateStory);
+  motion.addEventListener('change', updateStory);
+  updateStory();
 </script>
 
 <style>
   .depth-view {
     position: fixed; inset: 0; z-index: 2; isolation: isolate; overflow: hidden;
-    pointer-events: none; opacity: var(--city-opacity, 0);
-    color: #edf7f7; background: linear-gradient(#175674,#083451 44%,#061d35);
+    pointer-events: none; opacity: var(--city-opacity, 0); color: #f5f9f4;
+    background: linear-gradient(#0c3854, #092c47 45%, #061e31);
+    --pan-start: 1; --pan-end: 0;
   }
-  :global(body[data-submerged="true"]) .depth-view { pointer-events: auto; }
-  .city-canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: pan-y; }
-  .city-canvas:focus-visible { outline: 1px solid #c7f7f1; outline-offset: -4px; }
-  .about-copy {
-    position: absolute; top: 44%; right: 5.5%; width: clamp(210px, 22vw, 335px); transform: translateY(-50%);
-    color: ivory; text-shadow: 0 1px 6px #001521; opacity: var(--about-opacity,0);
-    pointer-events: none; transition: opacity .25s;
+  :global(body[data-submerged="true"]) .depth-view { pointer-events: auto; touch-action: pan-y; }
+  .panorama-layer {
+    position: absolute; top: 50%; left: 0;
+    width: max(138vw, calc(100dvh * 1859 / 846)); aspect-ratio: 1859 / 846;
+    --framing: calc(var(--pan-start) + (var(--pan-end) - var(--pan-start)) * var(--pan, 0));
+    transform: translate(calc((100vw - 100%) * var(--framing)), -50%);
   }
-  .about-copy::before {
-    content:''; position:absolute; z-index:-1; inset:-35% -16%;
-    background: radial-gradient(ellipse, #001e32c9 5%, #00223a87 45%, transparent 72%); pointer-events:none;
+  .waterfront-art { display:block; width:100%; height:100%; pointer-events:none; }
+  .story-shade {
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(90deg,transparent 35%,rgb(1 19 34 / 12%) 48%,rgb(2 20 35 / 69%) 71%,rgb(2 20 35 / 78%));
+    opacity:var(--about-opacity,0);
   }
-  .depth-view[data-exploring="true"] .about-copy { opacity: 0; }
-  h2 { margin: 0 0 .15em; font: 400 clamp(45px, 4.3vw, 70px)/1 Birthstone, cursive; color: #ffedcc; }
-  p { margin: 0; font: 450 clamp(14px, 1.07vw, 18px)/1.58 system-ui, sans-serif; text-wrap: pretty; }
-  .explore { position:absolute; left: max(5vw,16px); bottom:max(4vh,env(safe-area-inset-bottom)); opacity:var(--about-opacity,0); pointer-events:none; }
-  .controls {display:flex; flex-wrap:wrap; gap:6px;align-items:center;}
-  .controls label,.activate {pointer-events:auto;}
-  select,.activate { box-sizing:border-box; border-radius:7px; padding:8px 10px; font:550 13px/1.25 system-ui,sans-serif;
-    color:#f0f4e9; border:1px solid #bfe7ec58; background:#072a3fdc; cursor:pointer; min-height:38px; }
-  select:focus-visible,.activate:focus-visible { outline:2px solid #b4eeec;outline-offset:2px; }
-  small,.feedback { display:block; font:500 12px/1.4 system-ui,sans-serif; text-shadow:0 1px 5px #001627; }
-  small { margin-top:5px; } .feedback:not(:empty) {margin-bottom:8px; width:fit-content; max-width:90vw; background:#062b40dc; padding:5px 8px; border-radius:4px;}
+  .story-copy {
+    position:absolute; left:53%; right:3%; top:19%; bottom:17%;
+    display:grid; align-items:center; pointer-events:none; opacity:var(--about-opacity,0);
+  }
+  .chapter { grid-area:1 / 1; padding:0 clamp(8px,1.6vw,32px); visibility:hidden; opacity:0; transform:translateX(12px); }
+  .chapter[data-current="true"] { visibility:visible; opacity:1; transform:none; transition:opacity .32s ease-out,transform .36s ease-out; }
+  h2 { margin:0 0 .21em; font:400 clamp(54px,5.4vw,102px)/1.05 Birthstone,cursive; color:#ffedcc; text-wrap:balance; }
+  p { margin:0; max-width:39ch; font:450 clamp(17px,1.48vw,28px)/1.6 system-ui,sans-serif; text-wrap:pretty; text-shadow:0 1px 5px #001521; }
   @media(max-aspect-ratio:1/1){
-    .about-copy {top:auto;bottom:15%;right:6%;width:min(73%,310px);transform:none;}
-    .about-copy::before { background: radial-gradient(ellipse, #001b30ef 15%, #001b30af 50%, transparent 75%); inset:-28% -20%; }
-    .explore {bottom:max(17px,env(safe-area-inset-bottom));}
-    h2 {font-size:42px;}
+    .depth-view { --pan-start:.72; --pan-end:.055; }
+    .story-shade {background:linear-gradient(0deg,#021322f5 0%,#03192ae8 15%,#021d32bf 37%,transparent 57%);}
+    .story-copy { left:7%;right:6%;top:auto;bottom:max(6%,env(safe-area-inset-bottom)); }
+    .chapter {padding:0;}
+    h2 {font-size:clamp(44px,8.8vw,74px);}
+    p {font-size:clamp(16px,2.8vw,22px);max-width:43ch;line-height:1.5;}
   }
   @media(max-height:460px) and (min-aspect-ratio:1/1){
-    .about-copy {top:55%;width:32%;right:3%} h2 {font-size:37px;} p {font-size:13px;}
+    .story-copy {left:51%;right:3%;top:19%;bottom:5%;}
+    h2 {font-size:clamp(32px,5vw,48px);}
+    p {font-size:clamp(13px,2vw,17px);line-height:1.4;}
   }
-  @media(prefers-reduced-motion:reduce){.about-copy{transition:none;}}
+  @media(prefers-reduced-motion:reduce){.chapter[data-current="true"]{transition:none;}}
 </style>

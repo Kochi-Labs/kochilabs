@@ -1,0 +1,176 @@
+---
+const schools = [
+  { name: 'angelfish', image: 'reef-angelfish', x: 18, y: 75, span: 21, duration: 39, delay: -9 },
+  { name: 'blue tangs', image: 'reef-blue-tang', x: 50, y: 15, span: 29, duration: 54, delay: -16 },
+  { name: 'clownfish', image: 'reef-clownfish', x: 49, y: 83, span: 29, duration: 43, delay: -12 },
+];
+const formation = [
+  { x: 3, y: 31, w: 27, dx: -58, dy: -13 },
+  { x: 20, y: 61, w: 22, dx: -25, dy: 44 },
+  { x: 35, y: 14, w: 23, dx: 2, dy: -53 },
+  { x: 49, y: 50, w: 22, dx: 34, dy: 29 },
+  { x: 69, y: 30, w: 26, dx: 65, dy: -11 },
+];
+---
+<div class="waterfront-life">
+  <template>
+    <div class="ferry-route route">
+      <button class="ferry actor" data-kind="ferry" type="button" aria-label="Signal the Kochi Water Metro ferry">
+        <span class="turn ferry-heading">
+          <span class="ferry-bob">
+            <img class="ferry-vessel" src="/images/kochi-water-metro.webp" width="520" height="161" alt="" draggable="false" />
+            <span class="hull-reflection" aria-hidden="true"></span>
+            <span class="wake" aria-hidden="true"></span>
+          </span>
+        </span>
+      </button>
+    </div>
+    <div class="shark-route route">
+      <button class="shark actor" data-kind="shark" type="button" aria-label="Startle the reef shark">
+        <span class="turn shark-heading">
+          <span class="shark-glide">
+            <img class="shark-body" src="/images/blacktip-reef-shark.webp" width="520" height="164" alt="" draggable="false" />
+            <img class="shark-tail" src="/images/blacktip-reef-shark.webp" width="520" height="164" alt="" draggable="false" />
+          </span>
+        </span>
+      </button>
+    </div>
+    {schools.map(school => (
+      <div class="school-route route" style={`--span:${school.span}%;--duration:${school.duration}s;--delay:${school.delay}s`}>
+        <button class="school actor" type="button" data-kind="school" style={`left:${school.x}%;top:${school.y}%`} aria-label={`Scatter the school of ${school.name}`}>
+          <span class="school-heading turn">
+            {formation.map((f, i) => (
+              <span class="schoolmate" data-dx={f.dx} data-dy={f.dy} style={`left:${f.x}%;top:${f.y}%;width:${f.w}%;--beat:-${i * .43}s;`}>
+                <img src={`/images/${school.image}.webp`} alt="" draggable="false" />
+              </span>
+            ))}
+          </span>
+        </button>
+      </div>
+    ))}
+  </template>
+</div>
+
+<script>
+  const life = document.querySelector<HTMLElement>('.waterfront-life')!;
+  const template = life.querySelector('template')!;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let boostTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  function mountWhenDiving() {
+    if (document.body.dataset.diving !== 'true') return;
+    life.append(template.content);
+    template.remove();
+    window.removeEventListener('kochi:dive-depth', mountWhenDiving);
+  }
+
+  function react(event: Event) {
+    if (!(event.target instanceof Element)) return;
+    const actor = event.target.closest<HTMLButtonElement>('.actor');
+    if (!actor) return;
+    if (reduced.matches) {
+      actor.animate([{ filter: 'brightness(1.35)' }, { filter: 'brightness(1)' }], { duration: 180 });
+      return;
+    }
+    if (actor.dataset.kind === 'school') {
+      for (const member of actor.querySelectorAll<HTMLElement>('.schoolmate')) {
+        member.getAnimations().forEach(a => a.cancel());
+        member.animate([
+          { translate: '0 0' },
+          { translate: `${member.dataset.dx}% ${member.dataset.dy}%`, offset: .26 },
+          { translate: '0 0' },
+        ], { duration: 1200, easing: 'ease-out' });
+      }
+    } else if (actor.dataset.kind === 'shark') {
+      actor.animate([
+        { translate: '0 0', rotate: '0deg' },
+        { translate: '0 -22%', rotate: '-3deg', offset: .32 },
+        { translate: '0 0', rotate: '0deg' },
+      ], { duration: 1500, easing: 'ease-out' });
+    } else {
+      const sailing = [
+        ...actor.parentElement!.getAnimations(),
+        ...actor.querySelector<HTMLElement>('.ferry-heading')!.getAnimations(),
+      ];
+      sailing.forEach(animation => animation.updatePlaybackRate(1.65));
+      clearTimeout(boostTimeout);
+      boostTimeout = setTimeout(() => sailing.forEach(animation => animation.updatePlaybackRate(1)), 3100);
+      actor.animate([{ filter: 'brightness(1.35)' }, { filter: 'brightness(1)' }], { duration: 950 });
+    }
+  }
+
+  life.addEventListener('click', react);
+  window.addEventListener('kochi:dive-depth', mountWhenDiving);
+  mountWhenDiving();
+</script>
+
+<style>
+  .waterfront-life { position:absolute; inset:0; overflow:hidden; pointer-events:none; --play:paused; }
+  :global(body[data-diving="true"]) .waterfront-life { --play:running; }
+  .route { position:absolute; inset:0; pointer-events:none; }
+  .actor {
+    position:absolute; margin:0; padding:0; border:0; background:transparent; color:inherit;
+    font-size:0; line-height:0; cursor:pointer; touch-action:pan-y; -webkit-tap-highlight-color:transparent;
+  }
+  :global(body[data-submerged="true"]) .actor { pointer-events:auto; }
+  .actor:focus-visible { outline:2px solid #c7f6ed; outline-offset:3px; border-radius:30%; }
+  .actor img { display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none; pointer-events:none; }
+  .turn, .ferry-bob, .shark-glide { display:block; position:relative; pointer-events:none; }
+  .ferry-route { animation:ferry-route 68s linear -25s infinite; }
+  .ferry { left:30%; bottom:24.8%; width:13.4%; }
+  .ferry-heading { animation:ferry-turn 68s linear -25s infinite; }
+  .ferry-bob { animation:ferry-bob 4s ease-in-out -.7s infinite alternate; }
+  .ferry-vessel { filter:brightness(.77) saturate(.78); }
+  .hull-reflection {
+    position:absolute; left:3%; right:4%; top:98%; height:38%;
+    background:url('/images/kochi-water-metro.webp') bottom center / 100% 260% no-repeat;
+    transform:scaleY(-1) skewX(-6deg); opacity:.17;
+    mask-image:linear-gradient(to top, #000a,transparent 94%);
+  }
+  .wake {
+    position:absolute; right:96%; bottom:0; width:45%; height:5%; border-radius:50%;
+    background:linear-gradient(90deg,transparent,#b5dfd563); filter:blur(1px); transform:rotate(-3deg);
+  }
+  .shark-route { animation:shark-route 61s linear -11s infinite; }
+  .shark { left:77%; top:78%; width:14.2%; }
+  .shark-heading { animation:shark-turn 61s linear -11s infinite; }
+  .shark-glide { filter:brightness(.60) saturate(.78); animation:shark-glide 4.6s ease-in-out -.4s infinite alternate; }
+  .shark-body { clip-path:inset(0 19.8% 0 0); }
+  .shark-tail { position:absolute; inset:0; clip-path:inset(0 0 0 79.8%); transform-origin:80% 62%; animation:tail-beat 1.3s ease-in-out -.3s infinite alternate; }
+  .school-route { animation:school-route var(--duration) linear var(--delay) infinite; }
+  .school { width:11%; aspect-ratio:3.25; }
+  .school-heading { width:100%; height:100%; animation:school-turn var(--duration) linear var(--delay) infinite; }
+  .schoolmate { display:block; position:absolute; filter:saturate(.89) brightness(.82); }
+  .schoolmate img { animation:fin-beat 1.25s ease-in-out var(--beat) infinite alternate; }
+  .waterfront-life :is(.route,.turn,.ferry-bob,.shark-glide,.shark-tail,.schoolmate img) { animation-play-state:var(--play); }
+  @keyframes ferry-route {
+    0%,100% { transform:translate(0,0); }
+    47%,51% { transform:translate(43%,-3.5%); }
+    97% { transform:translate(0,0); }
+  }
+  @keyframes ferry-turn {
+    0%,46% { transform:scale(1,1); }
+    51%,96% { transform:scale(-.94,.94); }
+    100% { transform:scale(1,1); }
+  }
+  @keyframes ferry-bob { from { transform:translateY(-1.2%) rotate(-.55deg); } to { transform:translateY(1.2%) rotate(.45deg); } }
+  @keyframes shark-route {
+    0%,100% { transform:translate(0,0); }
+    24% { transform:translate(-24%,2.3%); }
+    48%,51% { transform:translate(-50%,-2%); }
+    75% { transform:translate(-26%,-1.2%); }
+  }
+  @keyframes shark-turn {
+    0%,46% { transform:scaleX(1); }
+    51%,96% { transform:scaleX(-.94); }
+    100% { transform:scaleX(1); }
+  }
+  @keyframes shark-glide { from { transform:translateY(-3%) rotate(-1.6deg); } to { transform:translateY(3%) rotate(1deg); } }
+  @keyframes tail-beat { from { transform:scaleX(.74) skewY(-1.4deg); } to { transform:scaleX(1.03) skewY(1.3deg); } }
+  @keyframes school-route { 0%,100% {transform:translate(0,0)} 48%,52% {transform:translate(var(--span),-2.5%)} }
+  @keyframes school-turn { 0%,47% {transform:scaleX(1)} 52%,97% {transform:scaleX(-1)} 100% {transform:scaleX(1)} }
+  @keyframes fin-beat { from { transform:translateY(-5%) scaleX(.93) rotate(-2deg); } to { transform:translateY(4%) scaleX(1) rotate(2deg); } }
+  @media(prefers-reduced-motion:reduce) {
+    :global(body[data-diving="true"]) .waterfront-life { --play:paused; }
+  }
+</style>
