@@ -66,7 +66,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   const sections = Array.from(header.querySelectorAll<HTMLButtonElement>('.section-trigger'));
   const results = Array.from(header.querySelectorAll<HTMLElement>('[data-terms]'));
   const empty = header.querySelector<HTMLElement>('.empty')!;
-  const compact = matchMedia('(max-width: 1000px)');
+  const compact = matchMedia('(max-width: 1120px)');
   const isOpen = (button: HTMLButtonElement) => button.getAttribute('aria-expanded') === 'true';
 
   function setOpen(button: HTMLButtonElement, open: boolean) {
@@ -145,7 +145,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     position: fixed;
     z-index: 4;
     top: max(16px, env(safe-area-inset-top));
-    left: max(18px, env(safe-area-inset-left));
+    left: max(env(safe-area-inset-left), 22.5vw);
     right: max(7%, 68px);
     --glass: rgb(239 248 247 / 24%);
     color: #142e29;
@@ -155,8 +155,8 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   }
   :global(body[data-time="night"]) .site-header { --glass: rgb(20 38 54 / 24%); color: #fff5db; text-shadow: 0 1px 3px #081728; }
   nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .controls { position: relative; display: flex; align-items: center; padding: 0 4px; border-radius: 16px; }
-  .controls, .brand, .dropdown .entries, #nav-search {
+  .controls { position: relative; display: flex; align-items: center; gap: clamp(6px, 1vw, 20px); }
+  .dropdown .entries, #nav-search {
     background-color: var(--glass);
     -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(3px); }
@@ -169,7 +169,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
   .brand { display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 14px; min-height: 38px; font-size: 19px; font-weight: 720; letter-spacing: -.055em; white-space: nowrap; }
   .brand svg { stroke-width: 6; }
-  #primary-links { display: flex; align-items: center; gap: 0; }
+  #primary-links { display: flex; align-items: center; gap: clamp(6px, 1vw, 20px); }
   #primary-links > li { position: relative; }
   .section-trigger, .icon-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 4px; }
   .section-trigger { white-space: nowrap; padding-inline: 7px; }
@@ -203,13 +203,13 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   :is(a, button, input):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
   [hidden] { display: none !important; }
 
-  @media (max-width: 1000px) {
-    .site-header { right: max(64px, env(safe-area-inset-right)); }
+  @media (max-width: 1120px) {
+    .site-header { left: max(14px, calc(50vw - 44svh)); right: max(64px, env(safe-area-inset-right)); }
     .menu-toggle { display: inline-flex; order: 1; }
     #primary-links {
       position: absolute; right: 0; top: calc(100% + 4px);
       width: min(260px, calc(100vw - 84px)); padding: 7px 10px; box-sizing: border-box;
-      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 4px 12px;
       background: var(--glass); border-radius: 14px; backdrop-filter: blur(3px);
       max-height: 44svh; overflow: auto; overscroll-behavior: contain; pointer-events: auto;
       transition: opacity 300ms ease-out, transform 300ms ease-out, visibility 300ms;

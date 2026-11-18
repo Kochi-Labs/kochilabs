@@ -24,7 +24,7 @@ import SiteNav from '../components/SiteNav.astro';
       </svg>
     </button>
     <div class="landscape" aria-hidden="true">
-      <img src="/images/kerala-backwaters-clean.png" alt="" fetchpriority="high" decoding="async" />
+      <img src="/images/kerala-backwaters-open-sky.png" alt="" fetchpriority="high" decoding="async" />
     </div>
     <canvas class="kerala-scene" tabindex="0" role="img" aria-label="Interactive Kerala backwaters. Click the water to make waves and float a lotus. Drag the houseboat, brush or shake the trees, and click a house to open its windows and light it inside. Click the metro to start a rear-carriage fire and rain sequence, or scroll to explore. Press Enter to ripple the water."></canvas>
     <div class="scene-wash" aria-hidden="true"></div>
@@ -110,7 +110,7 @@ import SiteNav from '../components/SiteNav.astro';
   const bottleNote = installBottleNote(noteDialog, (type) => soundscape.play(type, 0, .8));
   const houseButtons: HTMLButtonElement[] = [];
   const scene = createKeralaScene(canvas, {
-    backgroundUrl: '/images/kerala-backwaters-clean.png',
+    backgroundUrl: document.querySelector<HTMLImageElement>('.landscape img')!.src,
     onSound(type, pan, intensity) { soundscape.play(type, pan, intensity); },
     onSoundMotion(motion) { soundscape.setMotion(motion); },
     moonElement: document.querySelector<HTMLButtonElement>('.celestial')!,
