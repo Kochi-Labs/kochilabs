@@ -1,106 +1,199 @@
 ---
-const links = ['About us', 'Products', 'Services', 'Open source', 'Research', 'Let’s talk'];
+interface MegaMenuItem { title: string; description: string; href: string }
+interface MegaMenuResourceGroup { title: string; links: MegaMenuItem[] }
+
+const item = (title: string, description: string): MegaMenuItem => ({ title, description, href: '#' });
+const groups: MegaMenuResourceGroup[] = [
+  { title: 'About us', links: [item('Our story', 'How the lab took shape in Kochi.'), item('People', 'Meet the designers and engineers.')] },
+  { title: 'Products', links: [item('Tide', 'A shared notebook for field teams.'), item('Ferry', 'A quick way to share a prototype.')] },
+  { title: 'Services', links: [item('Product design', 'From the first sketch to a working prototype.'), item('Creative engineering', 'Interactive experiences for the web.')] },
+  { title: 'Open source', links: [item('Ripple Kit', 'Small water simulations for the browser.'), item('Palm Icons', 'A set of line icons inspired by Kerala.')] },
+  { title: 'Research', links: [item('Field recordings', 'Listening to the backwaters at dawn.'), item('Motion studies', 'Experiments in wind, water and light.')] },
+  { title: 'Let’s talk', links: [item('Start a project', 'Bring an idea to the studio.'), item('Collaborate', 'Explore a research partnership.')] },
+];
+const results = groups.flatMap(group => group.links.map(link => ({ name: link.title, meta: group.title, description: link.description, href: link.href })));
 ---
 
 <header class="site-header">
   <nav aria-label="Primary navigation">
-    <a class="brand" href="#"><img src="/favicon.svg" width="30" height="30" alt="" />Kochi Labs</a>
-    <button class="menu-toggle" type="button" aria-label="Menu" aria-controls="primary-links" aria-expanded="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16" /></svg>
+    <a class="brand" href="#">
+      <svg viewBox="0 0 64 64" width="25" height="25" aria-hidden="true"><path d="M32 6v52M6 32h52M14 14l36 36M14 50l36-36" /></svg>
+      Kochi Labs
+    </a>
+    <button class="menu-toggle icon-button" type="button" aria-expanded="false" aria-controls="primary-links" aria-label="Menu">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
     </button>
     <ul id="primary-links">
-      {links.map((label) => <li><a href="#">{label}</a></li>)}
+      {groups.map((group, index) => (
+        <li>
+          <button class="section-trigger" type="button" aria-expanded="false" aria-controls={`section-${index}`}>
+            {group.title}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
+          </button>
+          <ul id={`section-${index}`} class="dropdown" hidden>
+            {group.links.map(link => (
+              <li><a href={link.href}><strong>{link.title}</strong><small>{link.description}</small></a></li>
+            ))}
+          </ul>
+        </li>
+      ))}
     </ul>
+    <button class="search-toggle icon-button" type="button" aria-label="Search" aria-expanded="false" aria-controls="nav-search" aria-keyshortcuts="Control+K Meta+K">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg>
+    </button>
+    <section id="nav-search" role="search" aria-label="Search Kochi Labs" hidden>
+      <input type="search" aria-label="Search Kochi Labs" placeholder="Search Kochi Labs…" autocomplete="off" />
+      <ul class="results">
+        {results.map(result => (
+          <li data-terms={`${result.name} ${result.meta} ${result.description}`.toLowerCase()}>
+            <a href={result.href}><strong>{result.name}</strong><small>{result.meta}</small></a>
+          </li>
+        ))}
+      </ul>
+      <p class="empty" role="status" hidden>No matches found.</p>
+    </section>
   </nav>
 </header>
 
 <script>
   const header = document.querySelector<HTMLElement>('.site-header')!;
-  const toggle = header.querySelector<HTMLButtonElement>('.menu-toggle')!;
-  const isOpen = () => toggle.getAttribute('aria-expanded') === 'true';
-  const close = () => toggle.setAttribute('aria-expanded', 'false');
-  toggle.addEventListener('click', () => toggle.setAttribute('aria-expanded', String(!isOpen())));
+  const menu = header.querySelector<HTMLButtonElement>('.menu-toggle')!;
+  const search = header.querySelector<HTMLButtonElement>('.search-toggle')!;
+  const field = header.querySelector<HTMLInputElement>('input')!;
+  const sections = Array.from(header.querySelectorAll<HTMLButtonElement>('.section-trigger'));
+  const results = Array.from(header.querySelectorAll<HTMLElement>('[data-terms]'));
+  const empty = header.querySelector<HTMLElement>('.empty')!;
+  const compact = matchMedia('(max-width: 1220px)');
+  const isOpen = (button: HTMLButtonElement) => button.getAttribute('aria-expanded') === 'true';
+
+  function setOpen(button: HTMLButtonElement, open: boolean) {
+    button.setAttribute('aria-expanded', String(open));
+    if (button !== menu) document.getElementById(button.getAttribute('aria-controls')!)!.hidden = !open;
+  }
+  function closeAll() {
+    for (const button of [menu, search, ...sections]) setOpen(button, false);
+  }
+  function filterResults() {
+    const q = field.value.trim().toLowerCase();
+    for (const result of results) result.hidden = !result.dataset.terms!.includes(q);
+    empty.hidden = results.some(result => !result.hidden);
+  }
+  function toggleSearch() {
+    const open = !isOpen(search);
+    closeAll();
+    if (open) {
+      setOpen(search, true);
+      field.value = '';
+      filterResults();
+      field.focus();
+    } else search.focus();
+  }
+
+  search.addEventListener('click', toggleSearch);
+  field.addEventListener('input', filterResults);
+  menu.addEventListener('click', () => {
+    const open = !isOpen(menu);
+    closeAll();
+    setOpen(menu, open);
+  });
+  for (const button of sections) {
+    button.addEventListener('click', () => {
+      const open = !isOpen(button);
+      setOpen(search, false);
+      for (const other of sections) setOpen(other, other === button && open);
+    });
+  }
   header.addEventListener('click', (event) => {
-    if (event.target instanceof Element && event.target.closest('a') && isOpen()) {
-      close();
-      toggle.focus({ preventScroll: true });
-    }
+    if (!(event.target instanceof Element) || !event.target.closest('a')) return;
+    const trigger = isOpen(search) ? search : compact.matches && isOpen(menu) ? menu : sections.find(isOpen);
+    closeAll();
+    trigger?.focus();
   });
   document.addEventListener('pointerdown', (event) => {
-    if (event.target instanceof Node && !header.contains(event.target)) close();
+    if (event.target instanceof Node && !header.contains(event.target)) closeAll();
   });
   header.addEventListener('focusout', (event) => {
-    if (!(event.relatedTarget instanceof Node) || !header.contains(event.relatedTarget)) close();
+    if (event.relatedTarget instanceof Node && !header.contains(event.relatedTarget)) closeAll();
   });
-  header.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && isOpen()) {
-      close();
-      toggle.focus();
+  document.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && !document.querySelector('dialog[open]')) {
+      event.preventDefault();
+      toggleSearch();
+    } else if (event.key === 'Escape') {
+      const trigger = [search, ...sections, menu].find(isOpen);
+      if (trigger) {
+        setOpen(trigger, false);
+        trigger.focus();
+      }
     }
   });
-  matchMedia('(max-width: 820px)').addEventListener('change', close);
+  compact.addEventListener('change', closeAll);
 </script>
 
 <style>
   .site-header {
-    --ink: #203e32;
-    --surface: rgb(249 250 239 / 93%);
-    --accent: #254737;
-    --on-accent: #faf9e9;
     position: fixed;
     z-index: 4;
-    top: max(18px, env(safe-area-inset-top));
-    left: max(18px, env(safe-area-inset-left));
-    right: calc(max(18px, env(safe-area-inset-right)) + 52px);
-    color: var(--ink);
-    font: 500 14px/1.25 system-ui, sans-serif;
+    top: max(16px, env(safe-area-inset-top));
+    left: 33%;
+    right: max(7%, 68px);
+    color: #142e29;
+    font: 550 14px/1.35 system-ui, sans-serif;
+    text-shadow: 0 1px 2px #f3faffbd;
+    pointer-events: none;
   }
-  :global(body[data-time="night"]) .site-header {
-    --ink: #f0efda;
-    --surface: rgb(21 39 48 / 95%);
-    --accent: #dee9d0;
-    --on-accent: #203e32;
+  :global(body[data-time="night"]) .site-header { color: #fff5db; text-shadow: 0 1px 3px #081728; }
+  nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 1020px; margin: auto; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  button, input, a { font: inherit; color: inherit; text-shadow: inherit; background: transparent; }
+  button, input { padding: 0; border: 0; border-radius: 0; }
+  a { text-decoration: none; }
+  a, button, input, .results { pointer-events: auto; }
+  button { cursor: pointer; }
+  svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .brand { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; font-size: 20px; font-weight: 720; letter-spacing: -.055em; white-space: nowrap; }
+  .brand svg { stroke-width: 6; }
+  #primary-links { display: flex; justify-content: space-between; flex: 1; gap: 4px; }
+  .section-trigger, .icon-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 4px; }
+  .section-trigger { white-space: nowrap; }
+  .section-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .section-trigger:hover, .section-trigger[aria-expanded="true"], a:hover strong { text-decoration: underline; text-underline-offset: 4px; }
+  .icon-button { width: 40px; }
+  .icon-button svg { width: 19px; }
+  .menu-toggle { display: none; }
+  .dropdown, #nav-search { position: absolute; top: 100%; padding-top: 8px; }
+  .dropdown { left: 0; right: 0; display: flex; justify-content: center; gap: 32px; }
+  .dropdown li { max-width: 200px; }
+  .dropdown a { display: block; padding: 5px 0; }
+  strong, small { display: block; }
+  strong { font-size: 14px; font-weight: 690; }
+  small { font-size: 12px; margin-top: 3px; }
+  #nav-search { left: 50%; transform: translateX(-50%); width: min(330px, 100%); }
+  input { width: 100%; border-bottom: 1px solid currentColor; min-height: 38px; }
+  input::placeholder { color: inherit; opacity: .85; }
+  .results { max-height: min(18svh, 150px); overflow: auto; overscroll-behavior: contain; }
+  .results a { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 3px; }
+  .empty { margin: 8px 0; }
+  :is(a, button, input):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 1220px) {
+    .site-header { left: 34%; right: max(14%, 63px); }
+    nav { max-width: 580px; gap: 2px; }
+    .brand { margin-right: auto; }
+    .menu-toggle { display: inline-flex; order: 1; }
+    #primary-links { display: none; position: absolute; left: 0; right: 0; top: 100%; max-height: min(38svh, 270px); overflow: auto; overscroll-behavior: contain; pointer-events: auto; }
+    .menu-toggle[aria-expanded="true"] + #primary-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 0 18px; }
+    .section-trigger { justify-content: flex-start; min-height: 38px; }
+    .dropdown { position: static; display: block; padding: 0 0 6px; }
+    .dropdown small { display: none; }
+    #nav-search { left: 0; transform: none; }
   }
-  nav, ul { display: flex; align-items: center; }
-  nav, ul { background: var(--surface); }
-  nav {
-    justify-content: space-between;
-    min-height: 44px;
-    border-radius: 24px;
-    padding: 0 5px 0 8px;
-    box-shadow: 0 2px 12px rgb(19 48 41 / 12%);
-  }
-  a { color: inherit; text-decoration: none; }
-  .brand { display: inline-flex; align-items: center; gap: 9px; font-size: 19px; font-weight: 700; letter-spacing: -.045em; }
-  ul { padding: 0; margin: 0; list-style: none; background: transparent; gap: clamp(0px, .5vw, 12px); }
-  li a { display: block; padding: 9px clamp(9px, 1vw, 18px); border-radius: 18px; white-space: nowrap; }
-  li a:hover, .menu-toggle:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
-  li:last-child a { background: var(--accent); color: var(--on-accent); padding-inline: 18px; }
-  li:last-child a:hover { filter: brightness(1.12); }
-  :is(a, button):focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-  .menu-toggle { display: none; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; width: 44px; height: 44px; }
-  .menu-toggle svg { width: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
-  @media (max-width: 820px) {
-    .menu-toggle { display: grid; place-items: center; }
-    ul {
-      display: none;
-      position: absolute;
-      top: calc(100% + 7px);
-      right: 0;
-      width: min(240px, 100%);
-      box-sizing: border-box;
-      padding: 8px;
-      border-radius: 18px;
-      background: var(--surface);
-      box-shadow: 0 6px 20px rgb(19 48 41 / 16%);
-      max-height: calc(100dvh - 82px);
-      overflow: auto;
-    }
-    .menu-toggle[aria-expanded="true"] + ul { display: block; }
-    li a { padding: 13px 14px; }
-    li:last-child a { margin-top: 3px; }
+  @media (max-aspect-ratio: 1/1) {
+    .site-header { left: max(13%, 14px); right: max(13%, 62px); }
   }
   @media (max-width: 480px) {
-    .site-header { top: 14px; left: 12px; right: 64px; }
+    .site-header { top: 14px; }
+    .brand { font-size: 18px; }
+    .icon-button { width: 36px; }
   }
 </style>

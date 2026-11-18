@@ -239,15 +239,15 @@ import SiteNav from '../components/SiteNav.astro';
 </style>
 
 <style>
-  .sound-toggle { position: fixed; z-index: 3; top: max(env(safe-area-inset-top), 18px); right: max(env(safe-area-inset-right), 18px); display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%; background: #e8f2ed8c; color: #254c43; cursor: pointer; opacity: .8; transition: color .5s, background .5s, opacity .2s; }
-  .sound-toggle:hover, .sound-toggle:focus-visible { opacity: 1; background: #f3f7e8c9; }
+  .sound-toggle { position: fixed; z-index: 3; top: max(env(safe-area-inset-top), 18px); right: max(env(safe-area-inset-right), 18px); display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%; background: transparent; color: #254c43; cursor: pointer; opacity: .8; transition: color .5s, background .5s, opacity .2s; }
+  .sound-toggle:hover, .sound-toggle:focus-visible { opacity: 1; }
   .sound-toggle:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
   .sound-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
   .sound-waves { display: none; }
   .sound-toggle[aria-pressed="true"] .sound-waves { display: initial; }
   .sound-toggle[aria-pressed="true"] .sound-off { display: none; }
   .sound-toggle:disabled { opacity: .4; cursor: default; }
-  :global(body[data-time="night"]) .sound-toggle { color: #e9e1c1; background: #142b4666; }
+  :global(body[data-time="night"]) .sound-toggle { color: #e9e1c1; }
   @media (max-width: 480px) { .sound-toggle { top: 14px; right: 12px; } }
   @media (prefers-reduced-motion: reduce) { .sound-toggle { transition: none; } }
   .leaf-scroll-canvas { display: none; width: 100%; height: clamp(220px, 42vw, 300px); pointer-events: none; }
