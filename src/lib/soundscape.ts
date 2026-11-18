@@ -1,4 +1,4 @@
-export type SoundEffect = 'water' | 'boat' | 'palm' | 'window' | 'coconut' | 'cork' | 'paperOpen' | 'paperClose' | 'birds' | 'jump' | 'land' | 'gameOver' | 'gameStart' | 'celestial' | 'language';
+export type SoundEffect = 'water' | 'boat' | 'palm' | 'window' | 'coconut' | 'cork' | 'paperOpen' | 'paperClose' | 'birds' | 'jump' | 'land' | 'gameOver' | 'gameStart' | 'celestial';
 export type SoundState = 'waiting' | 'playing' | 'muted' | 'unavailable';
 export type SceneSoundMotion = { metroPan: number; metroMoving: boolean; boatPan: number; boatSpeed: number; boatDragging: boolean };
 
@@ -26,7 +26,7 @@ const EFFECT_FILES: Record<SoundEffect, string> = {
   water: 'foley-splash', coconut: 'foley-splash', boat: 'foley-wood', palm: 'foley-leaves',
   window: 'foley-window', cork: 'foley-cork', paperOpen: 'foley-paper', paperClose: 'foley-paper',
   birds: 'ambience-birds', jump: 'foley-step', land: 'foley-step', gameOver: 'foley-wood',
-  gameStart: 'handpan/D4-1', celestial: 'handpan/A4-1', language: 'foley-paper',
+  gameStart: 'handpan/D4-1', celestial: 'handpan/A4-1',
 };
 
 /** Real instrument takes and field recordings. No oscillator/noise substitutes. */
@@ -345,7 +345,6 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       const options: { offset?: number; duration?: number; fade?: number; attack?: number } = {};
       let strength = .72 * volume;
       if (type === 'birds') { if (night) return; options.duration = 1.8; options.fade = .4; strength = .07 * volume; }
-      if (type === 'language') { options.duration = .2; strength = .16 * volume; }
       if (type === 'paperClose') { options.duration = .68; strength *= .7; }
       // Different dry portions of the CC0 sand-footstep recording: a fast
       // takeoff brush, then a slightly deeper contact when the dino lands.

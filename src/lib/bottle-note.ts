@@ -1,7 +1,6 @@
-import type { HEADLINE_LANGUAGES } from './headline-languages';
+import { visitorLanguage } from './visitor-language';
 import { createPalmLeafScroll } from './palm-leaf-scroll';
 
-type Language = typeof HEADLINE_LANGUAGES[number];
 const messages = {
   en: 'Good things take their own sweet time.',
   es: 'Las cosas buenas llegan a su debido tiempo.',
@@ -16,6 +15,10 @@ export function installBottleNote(dialog: HTMLDialogElement, onSound?: (type: 'p
   const leaf = createPalmLeafScroll(dialog.querySelector<HTMLCanvasElement>('.leaf-scroll-canvas')!);
   if (leaf) dialog.dataset.scroll = 'ready';
   let language: keyof typeof messages = 'en';
+  const lookup = new AbortController();
+  void visitorLanguage(lookup.signal).then(code => {
+    if (!lookup.signal.aborted && Object.hasOwn(messages, code)) language = code as keyof typeof messages;
+  });
   let closing = false;
   let destroyed = false;
   function open() {
@@ -38,11 +41,9 @@ export function installBottleNote(dialog: HTMLDialogElement, onSound?: (type: 'p
   dialog.addEventListener('submit', requestClose);
   return {
     open, close,
-    setLanguage(next: Language) {
-      language = Object.hasOwn(messages, next.lang) ? next.lang as keyof typeof messages : 'en';
-    },
     destroy() {
       destroyed = true;
+      lookup.abort();
       dialog.removeEventListener('cancel', requestClose);
       dialog.removeEventListener('submit', requestClose);
       leaf?.destroy();

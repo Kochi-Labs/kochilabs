@@ -4,12 +4,12 @@ interface MegaMenuResourceGroup { title: string; links: MegaMenuItem[] }
 
 const item = (title: string, description: string): MegaMenuItem => ({ title, description, href: '#' });
 const groups: MegaMenuResourceGroup[] = [
-  { title: 'About us', links: [item('Our story', 'How the lab took shape in Kochi.'), item('People', 'Meet the designers and engineers.')] },
-  { title: 'Products', links: [item('Tide', 'A shared notebook for field teams.'), item('Ferry', 'A quick way to share a prototype.')] },
-  { title: 'Services', links: [item('Product design', 'From the first sketch to a working prototype.'), item('Creative engineering', 'Interactive experiences for the web.')] },
-  { title: 'Open source', links: [item('Ripple Kit', 'Small water simulations for the browser.'), item('Palm Icons', 'A set of line icons inspired by Kerala.')] },
-  { title: 'Research', links: [item('Field recordings', 'Listening to the backwaters at dawn.'), item('Motion studies', 'Experiments in wind, water and light.')] },
-  { title: 'Let’s talk', links: [item('Start a project', 'Bring an idea to the studio.'), item('Collaborate', 'Explore a research partnership.')] },
+  { title: 'About us', links: [item('Our story', 'Why we build products and custom software.'), item('Our sister startup', 'How we work together on client projects.')] },
+  { title: 'Products', links: [item('Our products', 'Explore the software we build in-house.'), item('Product design', 'How an everyday task becomes a product.')] },
+  { title: 'Services', links: [item('Cloud-native development', 'Applications built to grow with your business.'), item('AI integration & automation', 'Connect AI to your tools and automate routine work.')] },
+  { title: 'Open source', links: [item('Developer tools', 'Reusable tools for software teams.'), item('Code examples', 'Patterns for connecting applications.')] },
+  { title: 'Research', links: [item('Product research', 'How people use software in their daily work.'), item('Applied AI', 'Where AI can help in a real workflow.')] },
+  { title: 'Let’s talk', links: [item('Start a project', 'Tell us what your team needs to build.'), item('Product enquiries', 'Ask about a Kochi Labs product.')] },
 ];
 const results = groups.flatMap(group => group.links.map(link => ({ name: link.title, meta: group.title, description: link.description, href: link.href })));
 ---
@@ -67,6 +67,8 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   const results = Array.from(header.querySelectorAll<HTMLElement>('[data-terms]'));
   const empty = header.querySelector<HTMLElement>('.empty')!;
   const compact = matchMedia('(max-width: 1120px)');
+  let hoverSection: HTMLButtonElement | null = null;
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
   const isOpen = (button: HTMLButtonElement) => button.getAttribute('aria-expanded') === 'true';
 
   function setOpen(button: HTMLButtonElement, open: boolean) {
@@ -81,7 +83,14 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     }
   }
   function closeAll() {
+    clearTimeout(closeTimer);
+    hoverSection = null;
     for (const button of [menu, search, ...sections]) setOpen(button, false);
+  }
+  function showSection(button: HTMLButtonElement | null) {
+    clearTimeout(closeTimer);
+    setOpen(search, false);
+    for (const section of sections) setOpen(section, section === button);
   }
   function filterResults() {
     const q = field.value.trim().toLowerCase();
@@ -107,10 +116,27 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     setOpen(menu, open);
   });
   for (const button of sections) {
+    const item = button.closest('li')!;
+    item.addEventListener('pointerenter', event => {
+      if (event.pointerType !== 'mouse' || (compact.matches && !isOpen(menu))) return;
+      clearTimeout(closeTimer);
+      if (isOpen(button)) return;
+      hoverSection = button;
+      showSection(button);
+    });
+    item.addEventListener('pointerleave', event => {
+      if (event.pointerType !== 'mouse' || hoverSection !== button) return;
+      closeTimer = setTimeout(() => {
+        if (hoverSection === button && !item.contains(document.activeElement)) {
+          setOpen(button, false);
+          hoverSection = null;
+        }
+      }, 150);
+    });
     button.addEventListener('click', () => {
-      const open = !isOpen(button);
-      setOpen(search, false);
-      for (const other of sections) setOpen(other, other === button && open);
+      const open = hoverSection === button || !isOpen(button);
+      hoverSection = null;
+      showSection(open ? button : null);
     });
   }
   header.addEventListener('click', (event) => {
@@ -132,6 +158,8 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     } else if (event.key === 'Escape') {
       const trigger = [search, ...sections, menu].find(isOpen);
       if (trigger) {
+        clearTimeout(closeTimer);
+        hoverSection = null;
         setOpen(trigger, false);
         trigger.focus();
       }
@@ -187,6 +215,10 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   }
   #primary-links > li:nth-last-child(-n+2) .dropdown { left: auto; right: 0; }
   .dropdown[aria-hidden="true"] { opacity: 0; visibility: hidden; transform: translateY(8px); }
+  @media (min-width: 1121px) {
+    .dropdown { top: 100%; padding-top: 4px; }
+    .dropdown[aria-hidden="false"] { pointer-events: auto; }
+  }
   .entries { display: grid; gap: 4px; border-radius: 12px; padding: 5px 7px; }
   .dropdown a { display: block; padding: 4px 0; }
   strong, small { display: block; }
