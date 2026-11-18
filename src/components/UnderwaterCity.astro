@@ -6,21 +6,23 @@ const chapters = [
   { title: 'Our services', copy: 'We build cloud-native applications, integrate AI into existing software, and automate workflows. For example, we can connect a team’s inbox to its order system so details from an incoming document reach the right place without anyone retyping them.' },
 ];
 ---
-<section class="depth-view" aria-label="Kochi Labs story" inert>
+<section data-i18n="aria-label" class="depth-view" aria-label="Kochi Labs story" inert>
   <canvas class="city-canvas" tabindex="0" aria-label="Submerged Kochi waterfront. Scroll along the city. Tap a building, ferry, or fish to interact. Press Enter to activate a landmark."></canvas>
   <span class="scene-feedback" role="status" aria-live="polite"></span>
   <div class="story-shade" aria-hidden="true"></div>
   <div class="story-copy">
     {chapters.map((chapter, index) => (
       <article class="chapter" aria-hidden={index !== 0} data-current={index === 0 ? 'true' : undefined}>
-        <h2>{chapter.title}</h2>
-        <p>{chapter.copy}</p>
+        <h2 data-i18n="text">{chapter.title}</h2>
+        <p data-i18n="text">{chapter.copy}</p>
       </article>
     ))}
   </div>
 </section>
 
 <script>
+  import { onLanguageChange, translate } from '../lib/site-language';
+
   const section = document.querySelector<HTMLElement>('.depth-view')!;
   let canvas = section.querySelector('canvas')!;
   const feedback = section.querySelector<HTMLElement>('.scene-feedback')!;
@@ -29,10 +31,25 @@ const chapters = [
   let disposed = false;
   let feedbackTimer: ReturnType<typeof setTimeout>;
 
+  const canvasLabel = canvas.getAttribute('aria-label')!;
+  let feedbackSource = '';
+  function renderFeedback() {
+    // Landmark messages include the name of the building that was activated.
+    const divider = feedbackSource.indexOf(' · ');
+    const whole = translate(feedbackSource);
+    feedback.textContent = divider < 0 || whole !== feedbackSource ? whole
+      : translate('{value}' + feedbackSource.slice(divider), feedbackSource.slice(0, divider));
+  }
+  onLanguageChange(() => {
+    canvas.setAttribute('aria-label', translate(canvasLabel));
+    renderFeedback();
+  });
+
   function report(message: string) {
     clearTimeout(feedbackTimer);
-    feedback.textContent = message;
-    feedbackTimer = setTimeout(() => { feedback.textContent = ''; }, 3500);
+    feedbackSource = message;
+    renderFeedback();
+    feedbackTimer = setTimeout(() => { feedbackSource = ''; renderFeedback(); }, 3500);
   }
 
   async function loadCity() {

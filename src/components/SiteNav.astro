@@ -1,4 +1,6 @@
 ---
+import { languages } from "../lib/translations";
+
 interface MegaMenuItem { title: string; description: string; href: string }
 interface MegaMenuResourceGroup { title: string; links: MegaMenuItem[] }
 
@@ -15,58 +17,81 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
 ---
 
 <header class="site-header">
-  <nav aria-label="Primary navigation">
+  <nav data-i18n="aria-label" aria-label="Primary navigation">
     <a class="brand" href="#">
       <svg viewBox="0 0 64 64" width="25" height="25" aria-hidden="true"><path d="M32 6v52M6 32h52M14 14l36 36M14 50l36-36" /></svg>
       Kochi Labs
     </a>
     <div class="controls">
-      <button class="menu-toggle icon-button" type="button" aria-expanded="false" aria-controls="primary-links" aria-label="Menu">
+      <button data-i18n="aria-label" class="menu-toggle icon-button" type="button" aria-expanded="false" aria-controls="primary-links" aria-label="Menu">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
       </button>
       <ul id="primary-links">
         {groups.map((group, index) => (
           <li>
             <button class="section-trigger" type="button" aria-expanded="false" aria-controls={`section-${index}`}>
-              {group.title}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
+              <span data-i18n="text">{group.title}</span><svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
             </button>
             <div id={`section-${index}`} class="dropdown" inert aria-hidden="true">
               <div class="clip"><ul class="entries">
               {group.links.map(link => (
-                <li><a href={link.href}><strong>{link.title}</strong><small>{link.description}</small></a></li>
+                <li><a href={link.href}><strong data-i18n="text">{link.title}</strong><small data-i18n="text">{link.description}</small></a></li>
               ))}
               </ul></div>
             </div>
           </li>
         ))}
       </ul>
-      <button class="search-toggle icon-button" type="button" aria-label="Search" aria-expanded="false" aria-controls="nav-search" aria-keyshortcuts="Control+K Meta+K">
+      <div class="language-picker">
+        <button class="language-toggle" type="button" aria-expanded="false" aria-controls="language-options"
+          aria-labelledby="language-label current-language">
+          <svg class="globe" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>
+          <span id="language-label" class="sr-only" data-i18n="text">Language</span>
+          <span id="current-language" lang="en">{languages.en}</span>
+          <svg class="chevron" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
+        </button>
+        <ul id="language-options" aria-labelledby="language-label" aria-hidden="true" inert>
+          {Object.entries(languages).map(([code, name]) => (
+            <li><button type="button" value={code} lang={code} aria-pressed={code === 'en'}>
+              {name}<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7"/></svg>
+            </button></li>
+          ))}
+        </ul>
+      </div>
+      <button data-i18n="aria-label" class="search-toggle icon-button" type="button" aria-label="Search" aria-expanded="false" aria-controls="nav-search" aria-keyshortcuts="Control+K Meta+K">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg>
       </button>
-      <section id="nav-search" role="search" aria-label="Search Kochi Labs" hidden>
-        <input type="search" aria-label="Search Kochi Labs" placeholder="Search Kochi Labs…" autocomplete="off" />
+      <section data-i18n="aria-label" id="nav-search" role="search" aria-label="Search Kochi Labs" hidden>
+        <input data-i18n="aria-label placeholder" type="search" aria-label="Search Kochi Labs" placeholder="Search Kochi Labs…" autocomplete="off" />
         <ul class="results">
           {results.map(result => (
-            <li data-terms={`${result.name} ${result.meta} ${result.description}`.toLowerCase()}>
-              <a href={result.href}><strong>{result.name}</strong><small>{result.meta}</small></a>
+            <li data-description={result.description}>
+              <a href={result.href}><strong data-i18n="text">{result.name}</strong><small data-i18n="text">{result.meta}</small></a>
             </li>
           ))}
         </ul>
-        <p class="empty" role="status" hidden>No matches found.</p>
+        <p data-i18n="text" class="empty" role="status" hidden>No matches found.</p>
       </section>
     </div>
   </nav>
 </header>
 
 <script>
+  import { chooseLanguage, currentLanguage, installSiteLanguage, onLanguageChange, translate } from '../lib/site-language';
+  import { languages } from '../lib/translations';
+
   const header = document.querySelector<HTMLElement>('.site-header')!;
   const menu = header.querySelector<HTMLButtonElement>('.menu-toggle')!;
   const search = header.querySelector<HTMLButtonElement>('.search-toggle')!;
+  const picker = header.querySelector<HTMLElement>('.language-picker')!;
+  const languageToggle = picker.querySelector<HTMLButtonElement>('.language-toggle')!;
+  const languageName = picker.querySelector<HTMLElement>('#current-language')!;
+  const choices = Array.from(picker.querySelectorAll<HTMLButtonElement>('li button'));
   const field = header.querySelector<HTMLInputElement>('input')!;
   const sections = Array.from(header.querySelectorAll<HTMLButtonElement>('.section-trigger'));
-  const results = Array.from(header.querySelectorAll<HTMLElement>('[data-terms]'));
+  const results = Array.from(header.querySelectorAll<HTMLElement>('[data-description]'));
   const empty = header.querySelector<HTMLElement>('.empty')!;
-  const compact = matchMedia('(max-width: 1120px)');
+  const compact = matchMedia('(max-width: 1360px)');
   let hoverSection: HTMLButtonElement | null = null;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
   const isOpen = (button: HTMLButtonElement) => button.getAttribute('aria-expanded') === 'true';
@@ -85,16 +110,21 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   function closeAll() {
     clearTimeout(closeTimer);
     hoverSection = null;
-    for (const button of [menu, search, ...sections]) setOpen(button, false);
+    for (const button of [menu, search, languageToggle, ...sections]) setOpen(button, false);
   }
   function showSection(button: HTMLButtonElement | null) {
     clearTimeout(closeTimer);
     setOpen(search, false);
+    if (button === languageToggle) setOpen(menu, false);
+    setOpen(languageToggle, button === languageToggle);
     for (const section of sections) setOpen(section, section === button);
   }
   function filterResults() {
     const q = field.value.trim().toLowerCase();
-    for (const result of results) result.hidden = !result.dataset.terms!.includes(q);
+    for (const result of results) {
+      const terms = [result.querySelector('strong')!.textContent, result.querySelector('small')!.textContent, translate(result.dataset.description!)];
+      result.hidden = !terms.join(' ').toLowerCase().includes(q);
+    }
     empty.hidden = results.some(result => !result.hidden);
   }
   function toggleSearch() {
@@ -108,6 +138,40 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     } else search.focus();
   }
 
+  installSiteLanguage();
+  onLanguageChange(() => {
+    const code = currentLanguage();
+    languageName.textContent = languages[code];
+    languageName.lang = code;
+    for (const choice of choices) choice.setAttribute('aria-pressed', String(choice.value === code));
+  });
+  function focusCurrentLanguage() {
+    choices.find(choice => choice.value === currentLanguage())?.focus();
+  }
+  for (const choice of choices) {
+    choice.addEventListener('click', () => {
+      chooseLanguage(choice.value);
+      setOpen(languageToggle, false);
+      languageToggle.focus();
+    });
+  }
+  picker.addEventListener('keydown', event => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    if (!isOpen(languageToggle)) {
+      showSection(languageToggle);
+      focusCurrentLanguage();
+      return;
+    }
+    const index = choices.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1
+      : (index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length;
+    choices[next].focus();
+  });
+  picker.addEventListener('focusout', event => {
+    if (event.relatedTarget instanceof Node && !picker.contains(event.relatedTarget)) setOpen(languageToggle, false);
+  });
+  onLanguageChange(filterResults);
   search.addEventListener('click', toggleSearch);
   field.addEventListener('input', filterResults);
   menu.addEventListener('click', () => {
@@ -115,10 +179,10 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     closeAll();
     setOpen(menu, open);
   });
-  for (const button of sections) {
-    const item = button.closest('li')!;
+  for (const button of [...sections, languageToggle]) {
+    const item = button === languageToggle ? picker : button.closest('li')!;
     item.addEventListener('pointerenter', event => {
-      if (event.pointerType !== 'mouse' || (compact.matches && !isOpen(menu))) return;
+      if (event.pointerType !== 'mouse' || (button !== languageToggle && compact.matches && !isOpen(menu))) return;
       clearTimeout(closeTimer);
       if (isOpen(button)) return;
       hoverSection = button;
@@ -127,7 +191,9 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     item.addEventListener('pointerleave', event => {
       if (event.pointerType !== 'mouse' || hoverSection !== button) return;
       closeTimer = setTimeout(() => {
-        if (hoverSection === button && !item.contains(document.activeElement)) {
+        const focusedInside = item.contains(document.activeElement)
+          && (button !== languageToggle || document.activeElement !== languageToggle);
+        if (hoverSection === button && !focusedInside) {
           setOpen(button, false);
           hoverSection = null;
         }
@@ -137,6 +203,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
       const open = hoverSection === button || !isOpen(button);
       hoverSection = null;
       showSection(open ? button : null);
+      if (open && button === languageToggle) focusCurrentLanguage();
     });
   }
   header.addEventListener('click', (event) => {
@@ -156,7 +223,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
       event.preventDefault();
       toggleSearch();
     } else if (event.key === 'Escape') {
-      const trigger = [search, ...sections, menu].find(isOpen);
+      const trigger = [languageToggle, search, ...sections, menu].find(isOpen);
       if (trigger) {
         clearTimeout(closeTimer);
         hoverSection = null;
@@ -185,7 +252,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   :global(body[data-deep-nav="true"]) .site-header { left: max(14px, env(safe-area-inset-left)); }
   nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .controls { position: relative; display: flex; align-items: center; gap: clamp(6px, 1vw, 20px); }
-  .dropdown .entries, #nav-search {
+  .dropdown .entries, #nav-search, #language-options {
     background-color: var(--glass);
     -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(3px); }
@@ -207,6 +274,48 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   .section-trigger:hover, .section-trigger[aria-expanded="true"], a:hover strong { text-decoration: underline; text-underline-offset: 4px; }
   .icon-button { width: 34px; }
   .icon-button svg { width: 19px; }
+  .language-picker {
+    --settle: cubic-bezier(.22, 1, .36, 1);
+    display: inline-flex; align-items: center; position: relative; pointer-events: auto;
+  }
+  .language-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 5px; border-radius: 9px; }
+  .language-toggle[aria-expanded="true"] #current-language { text-decoration: underline; text-underline-offset: 4px; }
+  .language-picker:has(.language-toggle[aria-expanded="true"])::after {
+    content: ''; position: absolute; top: 100%; inset-inline: 0; height: 4px;
+  }
+  .language-toggle[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+  #language-options {
+    position: absolute; z-index: 1; top: calc(100% + 4px); right: 0; min-width: 134px;
+    box-sizing: border-box; padding: 5px 7px; border-radius: 12px;
+    max-height: calc(100dvh - 72px); overflow-y: auto; overscroll-behavior: contain;
+  }
+  #language-options button {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    min-height: 36px; padding: 5px 9px; border-radius: 9px; text-align: start;
+  }
+  #language-options[inert] { visibility: hidden; opacity: 0; pointer-events: none; }
+  #language-options button[aria-pressed="false"] svg { opacity: 0; }
+  #language-options button[aria-pressed="true"] { font-weight: 700; }
+  #language-options button:hover { text-decoration: underline; text-underline-offset: 4px; }
+  #language-options button:focus-visible { outline-offset: -2px; }
+  @media (prefers-reduced-motion: no-preference) {
+    #language-options {
+      transform-origin: calc(100% - 18px) top;
+      transition: transform 300ms var(--settle), opacity 155ms ease-out, visibility 0s;
+    }
+    #language-options[inert] {
+      transform: translateY(-5px) scale(.95);
+      transition: transform 145ms ease-in, opacity 145ms ease-in, visibility 0s 145ms;
+    }
+    .language-toggle, #language-options button {
+      transition: transform 200ms var(--settle), background-color 140ms ease-out;
+    }
+    .language-toggle:active, #language-options button:active { transform: scale(.97); transition-duration: 65ms; }
+    .language-toggle .chevron { transition: transform 280ms var(--settle); }
+    #language-options button svg { transition: opacity 110ms ease-out, transform 180ms var(--settle); }
+    #language-options button[aria-pressed="false"] svg { transform: scale(.75); }
+  }
+  @media (pointer: coarse) { #language-options button { min-height: 44px; } }
   .menu-toggle { display: none; }
   .dropdown, #nav-search { position: absolute; top: calc(100% + 4px); border-radius: 14px; }
   .dropdown {
@@ -215,7 +324,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   }
   #primary-links > li:nth-last-child(-n+2) .dropdown { left: auto; right: 0; }
   .dropdown[aria-hidden="true"] { opacity: 0; visibility: hidden; transform: translateY(8px); }
-  @media (min-width: 1121px) {
+  @media (min-width: 1361px) {
     .dropdown { top: 100%; padding-top: 4px; }
     .dropdown[aria-hidden="false"] { pointer-events: auto; }
   }
@@ -236,7 +345,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   :is(a, button, input):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
   [hidden] { display: none !important; }
 
-  @media (max-width: 1120px) {
+  @media (max-width: 1360px) {
     .site-header { left: max(14px, calc(50vw - 44svh)); right: max(64px, env(safe-area-inset-right)); }
     .menu-toggle { display: inline-flex; order: 1; }
     #primary-links {
@@ -248,7 +357,7 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
       transition: opacity 300ms ease-out, transform 300ms ease-out, visibility 300ms;
     }
     .menu-toggle[aria-expanded="false"] + #primary-links { visibility: hidden; opacity: 0; transform: translateY(-8px); pointer-events: none; }
-    .section-trigger { justify-content: flex-start; min-height: 38px; }
+    .section-trigger { justify-content: flex-start; min-height: 38px; white-space: normal; text-align: start; }
     .dropdown, .dropdown[aria-hidden="true"] {
       position: static; width: auto; transform: none; display: grid; grid-template-rows: 1fr;
       transition: grid-template-rows 300ms ease-out, opacity 300ms ease-out, visibility 300ms;
@@ -262,6 +371,13 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     .site-header { top: 14px; left: 12px; }
     .brand { font-size: 18px; }
     .icon-button { min-height: 42px; width: 36px; }
+  }
+  @media (max-width: 395px) {
+    .controls { gap: 1px; }
+    .brand { padding-inline: 0; }
+    .icon-button { width: 29px; }
+    .language-picker .globe { display: none; }
+    .language-toggle { padding-inline: 1px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .site-header *, #primary-links, #nav-search, #nav-search[hidden], .dropdown[aria-hidden] { transition: none; }

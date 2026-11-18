@@ -1,13 +1,13 @@
-<section class="runner" aria-label="Dinosaur runner game" data-dino-game>
+<section class="runner" data-i18n="aria-label" aria-label="Dinosaur runner game" data-dino-game>
   <div class="runner-heading">
-    <button class="runner-pause" type="button" data-pause aria-label="Pause game" hidden>
+    <button class="runner-pause" data-i18n="aria-label" type="button" data-pause aria-label="Pause game" hidden>
       <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true"><path d="M2 2h3v12H2zM9 2h3v12H9z" /></svg>
     </button>
     <button class="runner-score" type="button" data-score aria-label="Current score: 0. Show best score." aria-pressed="false" title="Show best score">00000</button>
   </div>
   <div class="runner-field">
-    <canvas class="runner-canvas" width="1040" height="155" tabindex="0" aria-label="Dinosaur runner. Press Space or Up Arrow, or tap, to start and jump over cacti."></canvas>
-    <button class="runner-restart" type="button" data-restart aria-label="Restart game" hidden>
+    <canvas class="runner-canvas" data-i18n="aria-label" width="1040" height="155" tabindex="0" aria-label="Dinosaur runner. Press Space or Up Arrow, or tap, to start and jump over cacti."></canvas>
+    <button class="runner-restart" data-i18n="aria-label" type="button" data-restart aria-label="Restart game" hidden>
       <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.8 7.5" /><path d="M4 4v6h6" /></svg>
     </button>
     <p class="sr-only" data-status aria-live="polite">Press Space or tap the game to start.</p>
@@ -15,6 +15,8 @@
 </section>
 
 <script>
+  import { onLanguageChange, translate } from '../lib/site-language';
+
   const root = document.querySelector<HTMLElement>('[data-dino-game]');
   if (root) {
     const canvas = root.querySelector<HTMLCanvasElement>('canvas')!;
@@ -50,8 +52,8 @@
         const value = showingBest ? best : score;
         scoreElement.textContent = formatted(value);
         scoreElement.setAttribute('aria-pressed', String(showingBest));
-        scoreElement.setAttribute('aria-label', `${showingBest ? 'Best' : 'Current'} score: ${value}. Show ${showingBest ? 'current' : 'best'} score.`);
-        scoreElement.title = `Show ${showingBest ? 'current' : 'best'} score`;
+        scoreElement.setAttribute('aria-label', translate(showingBest ? 'Best score: {value}. Show current score.' : 'Current score: {value}. Show best score.', value));
+        scoreElement.title = translate(showingBest ? 'Show current score' : 'Show best score');
       }
 
       const dinosaur = [
@@ -206,6 +208,17 @@
         window.dispatchEvent(new CustomEvent('kochi:game-sound', { detail: { type, pan } }));
       }
 
+      function updateStatus() {
+        const prompts = {
+          idle: 'Press Space or tap the game to start.',
+          paused: 'Paused. Press Space or tap to resume.',
+          over: 'Game over. {value} points. Press Space or tap to restart.',
+          running: '',
+        };
+        status.textContent = translate(prompts[mode], score);
+      }
+      onLanguageChange(() => { updateScore(); updateStatus(); });
+
       function finish() {
         mode = 'over';
         gameSound('gameOver');
@@ -214,7 +227,7 @@
           try { localStorage.setItem('kochi-labs-dino-best', String(best)); } catch { /* Saving a best score is optional. */ }
         }
         updateScore();
-        status.textContent = `Game over. ${score} points. Press Space or tap to restart.`;
+        updateStatus();
         pauseButton.hidden = true;
         restartButton.hidden = false;
       }
@@ -270,7 +283,7 @@
         updateScore();
         mode = 'running';
         if (!wasRunning) gameSound('gameStart');
-        status.textContent = '';
+        updateStatus();
         pauseButton.hidden = false;
         restartButton.hidden = true;
         previousTime = performance.now();
@@ -291,7 +304,7 @@
         if (mode !== 'running') return;
         mode = 'paused';
         cancelAnimationFrame(frame);
-        status.textContent = 'Paused. Press Space or tap to resume.';
+        updateStatus();
         pauseButton.hidden = true;
       }
 

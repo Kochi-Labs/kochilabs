@@ -12,7 +12,7 @@ const headline = 'Kochi Labs is cooking something';
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#dceef8" />
-    <meta name="description" content={headline} />
+    <meta data-i18n="content" name="description" content={headline} />
     <title>Kochi Labs</title>
     <link rel="icon" href="data:," />
     <link rel="preload" href="/fonts/Birthstone-Regular.ttf" as="font" type="font/ttf" crossorigin />
@@ -29,7 +29,7 @@ const headline = 'Kochi Labs is cooking something';
     <div class="landscape" aria-hidden="true">
       <img src="/images/kerala-backwaters-open-sky.webp" alt="" fetchpriority="high" decoding="async" />
     </div>
-    <canvas class="kerala-scene" tabindex="0" role="img" aria-label="Interactive Kerala backwaters. Click the water to make waves and float a lotus. Drag the houseboat, brush or shake the trees, and click a house to open its windows and light it inside. Click the metro to start a rear-carriage fire and rain sequence, or scroll to explore. Press Enter to ripple the water."></canvas>
+    <canvas class="kerala-scene" data-i18n="aria-label" tabindex="0" role="img" aria-label="Interactive Kerala backwaters. Click the water to make waves and float a lotus. Drag the houseboat, brush or shake the trees, and click a house to open its windows and light it inside. Click the metro to start a rear-carriage fire and rain sequence, or scroll to explore. Press Enter to ripple the water."></canvas>
     <div class="scene-wash" aria-hidden="true"></div>
     <div class="night-wash" aria-hidden="true"></div>
     <div class="storm-wash" aria-hidden="true"></div>
@@ -57,9 +57,9 @@ const headline = 'Kochi Labs is cooking something';
     </button>
     <span class="sr-only" role="status" id="time-status"></span>
     <span class="sr-only" role="status" id="village-status"></span>
-    <nav class="village-controls" aria-label="Village interactions"><button class="scene-shortcut bottle-shortcut" type="button" hidden>Read the message in the floating bottle</button></nav>
-    <dialog class="bottle-note" aria-label="An old palm-leaf message" aria-describedby="bottle-message">
-      <form method="dialog"><button class="note-close" aria-label="Close note" autofocus>×</button></form>
+    <nav class="village-controls" data-i18n="aria-label" aria-label="Village interactions"><button data-i18n="text" class="scene-shortcut bottle-shortcut" type="button" hidden>Read the message in the floating bottle</button></nav>
+    <dialog class="bottle-note" data-i18n="aria-label" aria-label="An old palm-leaf message" aria-describedby="bottle-message">
+      <form method="dialog"><button class="note-close" data-i18n="aria-label" aria-label="Close note" autofocus>×</button></form>
       <canvas class="leaf-scroll-canvas" aria-hidden="true"></canvas>
       <p id="bottle-message"></p>
       <span class="leaf-binding leaf-binding-left" aria-hidden="true"></span>
@@ -67,7 +67,7 @@ const headline = 'Kochi Labs is cooking something';
     </dialog>
     <main>
       <div class="headline">
-        <h1 lang="en">{headline}</h1>
+        <h1 data-i18n="text">{headline}</h1>
 
       </div>
       <DinoGame />
@@ -78,20 +78,26 @@ const headline = 'Kochi Labs is cooking something';
 </html>
 
 <script>
+  import { onLanguageChange, translate } from '../lib/site-language';
   import { createKeralaScene } from '../lib/kerala-scene';
   import { installBottleNote } from '../lib/bottle-note';
   import { createSoundscape, type SoundEffect } from '../lib/soundscape';
 
 
   const soundButton = document.querySelector<HTMLButtonElement>('.sound-toggle')!;
-  const soundscape = createSoundscape((state) => {
-    document.body.dataset.sound = state;
+  function renderSound() {
+    const state = document.body.dataset.sound;
     const playing = state === 'playing';
     soundButton.setAttribute('aria-pressed', String(playing));
     const label = state === 'unavailable' ? 'Sound unavailable in this browser' : playing ? 'Mute sound and handpan music' : 'Turn sound and handpan music on';
-    soundButton.setAttribute('aria-label', label);
-    soundButton.title = label;
+    soundButton.title = translate(label);
+    soundButton.setAttribute('aria-label', soundButton.title);
     soundButton.disabled = state === 'unavailable';
+  }
+  onLanguageChange(renderSound);
+  const soundscape = createSoundscape(state => {
+    document.body.dataset.sound = state;
+    renderSound();
   });
   const unlockSound = (event: Event) => {
     if (event.target instanceof Element && event.target.closest('.sound-toggle')) return;
@@ -112,6 +118,9 @@ const headline = 'Kochi Labs is cooking something';
   const bottleButton = document.querySelector<HTMLButtonElement>('.bottle-shortcut')!;
   const bottleNote = installBottleNote(noteDialog, (type) => soundscape.play(type, 0, .8));
   const houseButtons: HTMLButtonElement[] = [];
+  function windowLabel(label: string, open: boolean) {
+    return translate(open ? 'Close windows: {value}' : 'Open windows: {value}', translate(label));
+  }
   const scene = createKeralaScene(canvas, {
     backgroundUrl: document.querySelector<HTMLImageElement>('.landscape img')!.src,
     onSound(type, pan, intensity) { soundscape.play(type, pan, intensity); },
@@ -124,24 +133,24 @@ const headline = 'Kochi Labs is cooking something';
       const button = houseButtons[index];
       if (button) {
         button.setAttribute('aria-pressed', String(open));
-        button.textContent = `${open ? 'Close' : 'Open'} windows: ${scene.houseLabels[index]}`;
+        button.textContent = windowLabel(scene.houseLabels[index], open);
       }
-      if (!automatic) document.querySelector('#village-status')!.textContent = `${scene.houseLabels[index]}: ${open ? 'windows open, lights on' : 'windows closed, lights off'}.`;
+      if (!automatic) document.querySelector('#village-status')!.textContent = translate(open ? '{value}: windows open, lights on.' : '{value}: windows closed, lights off.', translate(scene.houseLabels[index]));
     },
     onStormChange(intensity) { document.body.style.setProperty('--storm', String(intensity)); soundscape.setRain(intensity); },
     onSequencePhase(phase) {
       const status = document.querySelector('#village-status')!;
       soundscape.setFire(phase === 'fire' ? .65 : phase === 'rain' ? .2 : 0);
-      if (phase === 'rain') status.textContent = 'Rain sweeps over the metro, cooling the damaged rear carriage and extinguishing the fire.';
-      if (phase === 'cooled') status.textContent = 'The fire is out. Steam lifts from the scorched metro as the rain eases.';
+      if (phase === 'rain') status.textContent = translate('Rain sweeps over the metro, cooling the damaged rear carriage and extinguishing the fire.');
+      if (phase === 'cooled') status.textContent = translate('The fire is out. Steam lifts from the scorched metro as the rain eases.');
     },
     onPassengerFound() {
       soundscape.setFire(.65);
-      document.querySelector('#village-status')!.textContent = 'The last metro carriage catches fire. Rain will arrive to extinguish it.';
+      document.querySelector('#village-status')!.textContent = translate('The last metro carriage catches fire. Rain will arrive to extinguish it.');
     },
     onCoconutSplash(pan) {
       soundscape.play('coconut', pan, .9);
-      document.querySelector('#village-status')!.textContent = 'A coconut splashes into the backwaters and floats.';
+      document.querySelector('#village-status')!.textContent = translate('A coconut splashes into the backwaters and floats.');
     },
     onReady(supported) {
       document.body.dataset.scene = supported ? 'ready' : 'fallback';
@@ -160,7 +169,7 @@ const headline = 'Kochi Labs is cooking something';
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'scene-shortcut';
-    button.textContent = `Open windows: ${label}`;
+    button.textContent = windowLabel(label, false);
     button.setAttribute('aria-pressed', 'false');
     button.addEventListener('click', () => scene.toggleHouse(index));
     houseButtons.push(button);
@@ -170,12 +179,26 @@ const headline = 'Kochi Labs is cooking something';
     const shake = document.createElement('button');
     shake.type = 'button';
     shake.className = 'scene-shortcut';
-    shake.textContent = 'Shake a palm and drop a coconut';
+    onLanguageChange(() => { shake.textContent = translate('Shake a palm and drop a coconut'); });
     shake.addEventListener('click', () => scene.shakePalm());
     villageControls.append(shake);
   }
   const celestial = document.querySelector<HTMLButtonElement>('.celestial')!;
   let isNight = false;
+  function renderCelestial() {
+    celestial.setAttribute('aria-label', translate(isNight
+      ? 'Moon. Double-click to change to day. Enter or Space also works.'
+      : 'Sun. Double-click to change to night. Enter or Space also works.'));
+    celestial.title = translate(isNight ? 'Double-click for day' : 'Double-click for night');
+  }
+  onLanguageChange(() => {
+    renderCelestial();
+    houseButtons.forEach((button, index) => {
+      button.textContent = windowLabel(scene.houseLabels[index], button.getAttribute('aria-pressed') === 'true');
+    });
+    document.querySelector('#village-status')!.textContent = '';
+    document.querySelector('#time-status')!.textContent = '';
+  });
   let lastTap = 0;
   let lastTouch = -1000;
   const toggleNight = () => {
@@ -185,9 +208,8 @@ const headline = 'Kochi Labs is cooking something';
     soundscape.setNight(isNight);
     soundscape.play('celestial', .35, .65);
     celestial.setAttribute('aria-pressed', String(isNight));
-    celestial.setAttribute('aria-label', `${isNight ? 'Moon' : 'Sun'}. Double-click to change to ${isNight ? 'day' : 'night'}. Enter or Space also works.`);
-    celestial.title = `Double-click for ${isNight ? 'day' : 'night'}`;
-    document.querySelector('#time-status')!.textContent = isNight ? 'Night falls over the backwaters. All village houses light up.' : 'Daylight returns to the backwaters.';
+    renderCelestial();
+    document.querySelector('#time-status')!.textContent = translate(isNight ? 'Night falls over the backwaters. All village houses light up.' : 'Daylight returns to the backwaters.');
     document.querySelector('meta[name="theme-color"]')!.setAttribute('content', isNight ? '#101e38' : '#dceef8');
   };
   celestial.addEventListener('dblclick', () => {
@@ -376,6 +398,7 @@ const headline = 'Kochi Labs is cooking something';
     letter-spacing: 0;
     text-shadow: 0 1px 14px rgb(255 255 255 / 60%);
   }
+  :lang(hi) :is(.headline h1, .chapter h2) { font-family: 'Noto Serif Devanagari', serif; line-height: 1.45; }
   body[data-time="night"] .headline h1 { color: #f3f5ec; text-shadow: 0 1px 10px #091728; }
   @media (max-height: 540px) { .headline h1 { font-size: clamp(30px, 5vw, 48px); } }
   @media (max-width: 480px) { main { width: calc(100% - 32px); padding-bottom: 24px; } }
