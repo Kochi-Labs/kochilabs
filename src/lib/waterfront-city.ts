@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { createEiffelTower } from './eiffel-tower';
+import { createBurjKhalifa } from './burj-khalifa';
+import { createOperaHouse } from './opera-house';
 
 type Point = [number, number, number];
 type Placement = { matrix: THREE.Matrix4; color: THREE.Color };
@@ -418,6 +421,23 @@ export function createWaterfrontCity() {
     );
   }
 
+  function placeLandmark(model: THREE.Group, x: number, z: number, facing: number, description: string) {
+    model.position.set(x, base, z);
+    model.rotation.y = facing;
+    group.add(model);
+    model.traverse(mesh => {
+      if (!(mesh instanceof THREE.Mesh)) return;
+      mesh.castShadow = true;
+      targets.push(mesh);
+      actions.set(mesh, () => model.name + ' · ' + description);
+    });
+  }
+
+  // Stagger the landmarks along the west bank so their profiles separate as the camera moves.
+  placeLandmark(createBurjKhalifa(), -45, -24, .32, 'Silver wings step back into a single spire.');
+  placeLandmark(createEiffelTower(), -29, -17, .28, 'Four iron lattice piers meet above the arches.');
+  placeLandmark(createOperaHouse(), -30, -8.5, 1.18, 'Tiled shell roofs rise above the harbour steps.');
+
   // Uneven blocks step up behind the concourse; a clear channel remains on the right.
   const apartments = building(-8, -19, 5.5, 4.9, 17, false, 'Marine Drive apartments');
   building(-13.0, -22.8, 3.8, 4.4, 13, true, 'Harbour Point offices');
@@ -440,6 +460,12 @@ export function createWaterfrontCity() {
       );
     }
   }
+
+  building(-37, -29, 4.4, 3.8, 5, true, 'West Quay offices');
+  building(-31, -26, 3.2, 3.7, 4, false, 'West Quay flats');
+  building(-45, -36, 4.6, 4.2, 7, true, 'Harbour View offices');
+  part(group, [-31.5, base + .10, -11.2], [12.5, .2, 1.9], '#687e80');
+  part(group, [-31.5, base + .23, -12.09], [12.5, .10, .12], '#a0aaa1');
 
   // Waterfront road with lane paint, slender lamps, seawall coping and promenade kerbs.
   part(group, [-4, base + 0.17, -10.6], [43, 0.28, 3.25], '#3e535c');

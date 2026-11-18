@@ -92,8 +92,9 @@ export function createUnderwaterExplorer(canvas: HTMLCanvasElement, report: (mes
     time += dt;
     const reduced = motion.matches;
     const approach = reduced ? 1 : depth;
-    view.set(5.2 - 2.2 * (1 - approach) - 14 * pan, 5.5 + 7 * (1 - approach), 12.5 + 13 * (1 - approach));
-    aim.set((camera.aspect < 0.9 ? -6 : -2) - 14 * pan, 4.6 + (1 - approach) * 2, -18);
+    const westwardTravel = camera.aspect < 0.9 ? 23 : 14;
+    view.set(5.2 - 2.2 * (1 - approach) - westwardTravel * pan, 5.5 + 7 * (1 - approach), 12.5 + 13 * (1 - approach));
+    aim.set((camera.aspect < 0.9 ? -6 : -2) - westwardTravel * pan, 4.6 + (1 - approach) * 2, -18);
     const blend = firstFrame || reduced ? 1 : 1 - Math.exp(-dt * 3.4);
     camera.position.lerp(view, blend);
     look.lerp(aim, blend);

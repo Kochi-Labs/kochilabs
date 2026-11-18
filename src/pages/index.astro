@@ -14,7 +14,7 @@ import UnderwaterCity from '../components/UnderwaterCity.astro';
     <meta name="description" content={ENGLISH_HEADLINE} />
     <title>Kochi Labs</title>
     <link rel="icon" href="data:," />
-    <link rel="preload" href="/fonts/InstrumentSans-Latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/InstrumentSerif-Regular.ttf" as="font" type="font/ttf" crossorigin />
   </head>
   <body>
     <SiteNav />
@@ -290,6 +290,13 @@ import UnderwaterCity from '../components/UnderwaterCity.astro';
 
 <style is:global>
   @font-face {
+    font-family: "Instrument Serif";
+    src: url("/fonts/InstrumentSerif-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
     font-family: "Instrument Sans";
     src: url("/fonts/InstrumentSans-Latin.woff2") format("woff2");
     font-weight: 400 700;
@@ -395,6 +402,11 @@ import UnderwaterCity from '../components/UnderwaterCity.astro';
     font: 510 clamp(22px, 2.45vw, 41px)/1.27 "Instrument Sans", system-ui, sans-serif;
     letter-spacing: -.025em;
     text-shadow: 0 1px 8px rgb(238 249 255 / 62%);
+  }
+  .headline h1:has(.headline-trigger:lang(en)) {
+    max-width: min(100%, 52ch);
+    font: 400 clamp(26px, min(3.2vw, 6svh), 48px)/1.18 "Instrument Serif", Georgia, serif;
+    letter-spacing: .004em;
   }
   body[data-time="night"] .headline h1 { color: #f3f5ec; text-shadow: 0 1px 10px #091728; }
   .headline-trigger:lang(hi) { font-family: "Noto Serif Devanagari", serif; line-height: 1.5; letter-spacing: normal; }
