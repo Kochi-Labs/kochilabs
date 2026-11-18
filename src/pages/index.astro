@@ -1,5 +1,6 @@
 ---
 import DinoGame from '../components/DinoGame.astro';
+import SiteNav from '../components/SiteNav.astro';
 ---
 
 <!doctype html>
@@ -14,6 +15,7 @@ import DinoGame from '../components/DinoGame.astro';
     <link rel="preload" href="/fonts/Birthstone-Regular.ttf" as="font" type="font/ttf" crossorigin />
   </head>
   <body>
+    <SiteNav />
     <button class="sound-toggle" type="button" aria-label="Turn sound on" aria-pressed="false" title="Turn sound on">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M11 5 6 9H3v6h3l5 4Z" />
