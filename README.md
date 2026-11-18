@@ -1,6 +1,6 @@
 # Kochi Labs
 
-A minimal Astro holding page: “God’s own country is cooking something.” Includes an original Chrome-inspired dinosaur runner with keyboard and touch controls. The page uses an original anime-inspired Kerala backwaters background and black text and game graphics, with only the headline and game score visible.
+Kochi Labs’ Astro landing page introduces its work in digital products, cloud-native solutions, and automation. The illustrated Kerala backwaters include an interactive houseboat, a dinosaur runner, and a scroll-driven dive into a submerged city.
 
 ## Development
 
@@ -47,8 +47,8 @@ The signature heading uses the locally hosted Birthstone font from Google Fonts.
 - Click the water to send out waves and float a lotus. The boat responds to wave heights sampled beneath its bow and stern.
 - Drag the houseboat horizontally; release it to let its momentum settle. Tap it for a gentle rocking motion.
 - The original cream-and-teal illustrated metro runs along its simple concrete viaduct and pillars. Click any carriage once to ignite the last (leftmost) carriage; the other two remain intact. Rain arrives, extinguishes the fire, and leaves steam and rear-carriage damage.
-- The headline cycles through English, Spanish, French, German, and Hindi every eight seconds. Click to change immediately. Hover, keyboard focus, and hidden tabs pause the cycle; reduced-motion mode uses manual switching. Hindi uses locally bundled Noto Serif Devanagari, with its SIL Open Font License in `public/fonts/`.
-- A small corked glass bottle drifts in the backwaters, sharing the boat's wave heights and slope. Click it (or use its keyboard shortcut while present) to open the textured palm-leaf message in the current headline language. Its spiral ends physically unwind and roll back up when closed. The bottle first appears after three seconds and returns after being opened. Close the message with its button, Escape, or a click outside it. Reduced motion holds the bottle still and opens/closes the leaf immediately. `message-bottle.ts` owns the floating model; `bottle-note.ts` coordinates the accessible dialog; `palm-leaf-scroll.ts` owns the manuscript.
+- The headline opens in English. When the IP country has a matching translation, it alternates between English and that translation. Click to switch immediately. Hover, focus, and background tabs pause the rotation. Reduced-motion mode supports manual switching.
+- A small corked glass bottle drifts in the backwaters, sharing the boat's wave heights and slope. Click it (or use its keyboard shortcut while present) to open the textured palm-leaf message in the current headline language when available. Its spiral ends physically unwind and roll back up when closed. The bottle first appears after three seconds and returns after being opened. Close the message with its button, Escape, or a click outside it. Reduced motion holds the bottle still and opens/closes the leaf immediately. `message-bottle.ts` owns the floating model; `bottle-note.ts` coordinates the accessible dialog; `palm-leaf-scroll.ts` owns the manuscript.
 - Scroll to shift the landscape, bridge, and boat at different depths.
 - Focus the scene and press Enter to make a splash. Space still starts the dinosaur game.
 - The score toggles between the current run and your saved best score.

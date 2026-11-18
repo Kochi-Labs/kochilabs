@@ -1,5 +1,4 @@
 ---
-import WaterfrontLife from './WaterfrontLife.astro';
 const chapters = [
   { title: 'About us', copy: 'Kochi Labs is a creative technology startup in Kerala. We bring code, illustration, and sound together to build places you can explore on the web.' },
   { title: 'Our story', copy: 'A houseboat crossing the lake. A ferry pulling away from the jetty. Kochi is full of small moments worth a second look. This waterfront is our way of sharing them.' },
@@ -8,11 +7,8 @@ const chapters = [
 ];
 ---
 <section class="depth-view" aria-label="Kochi Labs story" inert>
-  <div class="panorama-layer">
-    <img class="waterfront-art" data-src="/images/kochi-waterfront-panorama.webp" width="1859" height="846"
-      alt="A submerged Kochi waterfront with terraced glass buildings, coral gardens, a Water Metro terminal and an imagined Titanic wreck to the west." decoding="async" />
-    <WaterfrontLife />
-  </div>
+  <canvas class="city-canvas" tabindex="0" aria-label="Submerged Kochi waterfront. Scroll along the city. Tap a building, ferry, or fish to interact. Press Enter to activate a landmark."></canvas>
+  <span class="scene-feedback" role="status" aria-live="polite"></span>
   <div class="story-shade" aria-hidden="true"></div>
   <div class="story-copy">
     {chapters.map((chapter, index) => (
@@ -26,7 +22,36 @@ const chapters = [
 
 <script>
   const section = document.querySelector<HTMLElement>('.depth-view')!;
-  const art = section.querySelector<HTMLImageElement>('.waterfront-art')!;
+  let canvas = section.querySelector('canvas')!;
+  const feedback = section.querySelector<HTMLElement>('.scene-feedback')!;
+  let city: { setState(active: boolean, depth: number, pan: number): void; destroy(): void } | undefined;
+  let loading = false;
+  let disposed = false;
+  let feedbackTimer: ReturnType<typeof setTimeout>;
+
+  function report(message: string) {
+    clearTimeout(feedbackTimer);
+    feedback.textContent = message;
+    feedbackTimer = setTimeout(() => { feedback.textContent = ''; }, 3500);
+  }
+
+  async function loadCity() {
+    loading = true;
+    try {
+      const { createUnderwaterExplorer } = await import('../lib/underwater-explorer');
+      if (disposed) return;
+      city = createUnderwaterExplorer(canvas, report);
+    } catch {
+      if (disposed) return;
+      const { createWaterfrontFallback } = await import('../lib/waterfront-fallback');
+      if (disposed) return;
+      const replacement = canvas.cloneNode(false) as HTMLCanvasElement;
+      canvas.replaceWith(replacement);
+      canvas = replacement;
+      city = createWaterfrontFallback(canvas, report);
+    }
+    updateStory();
+  }
   const chapters = Array.from(section.querySelectorAll<HTMLElement>('.chapter'));
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   let current = 0;
@@ -34,7 +59,8 @@ const chapters = [
   function updateStory() {
     const { body } = document;
     section.inert = body.dataset.submerged !== 'true';
-    if (body.dataset.diving === 'true' && !art.hasAttribute('src')) art.src = art.dataset.src!;
+    const diving = body.dataset.diving === 'true';
+    if (diving && !loading) void loadCity();
     const progress = Number(body.style.getPropertyValue('--story-progress')) || 0;
     const chapter = Math.min(chapters.length - 1, Math.floor(progress * chapters.length));
     if (chapter !== current) {
@@ -45,11 +71,19 @@ const chapters = [
       current = chapter;
     }
     const pan = motion.matches ? chapter / (chapters.length - 1) : progress;
-    section.style.setProperty('--pan', String(pan));
+    city?.setState(diving, Number(body.style.getPropertyValue('--city-depth')) || 0, pan);
   }
   window.addEventListener('kochi:dive-depth', updateStory);
   motion.addEventListener('change', updateStory);
   updateStory();
+  window.addEventListener('pagehide', event => {
+    if (event.persisted) return;
+    disposed = true;
+    clearTimeout(feedbackTimer);
+    window.removeEventListener('kochi:dive-depth', updateStory);
+    motion.removeEventListener('change', updateStory);
+    city?.destroy();
+  });
 </script>
 
 <style>
@@ -57,16 +91,12 @@ const chapters = [
     position: fixed; inset: 0; z-index: 2; isolation: isolate; overflow: hidden;
     pointer-events: none; opacity: var(--city-opacity, 0); color: #f5f9f4;
     background: linear-gradient(#0c3854, #092c47 45%, #061e31);
-    --pan-start: 1; --pan-end: 0;
   }
   :global(body[data-submerged="true"]) .depth-view { pointer-events: auto; touch-action: pan-y; }
-  .panorama-layer {
-    position: absolute; top: 50%; left: 0;
-    width: max(138vw, calc(100dvh * 1859 / 846)); aspect-ratio: 1859 / 846;
-    --framing: calc(var(--pan-start) + (var(--pan-end) - var(--pan-start)) * var(--pan, 0));
-    transform: translate(calc((100vw - 100%) * var(--framing)), -50%);
-  }
-  .waterfront-art { display:block; width:100%; height:100%; pointer-events:none; }
+  .city-canvas { display:block; width:100%; height:100%; touch-action:pan-y; }
+  .city-canvas:focus-visible { outline:1px solid #c7f7f1; outline-offset:-4px; }
+  .scene-feedback { position:absolute; left:5%; top:11%; max-width:85%; pointer-events:none;
+    font:500 14px/1.5 system-ui,sans-serif; text-shadow:0 1px 6px #001521; }
   .story-shade {
     position:absolute; inset:0; pointer-events:none;
     background:linear-gradient(90deg,transparent 35%,rgb(1 19 34 / 12%) 48%,rgb(2 20 35 / 69%) 71%,rgb(2 20 35 / 78%));
@@ -81,7 +111,6 @@ const chapters = [
   h2 { margin:0 0 .21em; font:400 clamp(54px,5.4vw,102px)/1.05 Birthstone,cursive; color:#ffedcc; text-wrap:balance; }
   p { margin:0; max-width:39ch; font:450 clamp(17px,1.48vw,28px)/1.6 system-ui,sans-serif; text-wrap:pretty; text-shadow:0 1px 5px #001521; }
   @media(max-aspect-ratio:1/1){
-    .depth-view { --pan-start:.72; --pan-end:.055; }
     .story-shade {background:linear-gradient(0deg,#021322f5 0%,#03192ae8 15%,#021d32bf 37%,transparent 57%);}
     .story-copy { left:7%;right:6%;top:auto;bottom:max(6%,env(safe-area-inset-bottom)); }
     .chapter {padding:0;}

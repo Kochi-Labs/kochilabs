@@ -1,29 +1,23 @@
 type LandmarkHit = { stop: number; x: number; y: number; w: number; h: number };
 
 export function createWaterfrontFallback(canvas: HTMLCanvasElement, report: (message: string) => void) {
-  const stops = ['Marine Drive', 'Kochi Metro', 'Water Metro', 'Container port'];
-  const centers = [[303, 231], [430, 334], [682, 374], [133, 337]];
   const ctx = canvas.getContext('2d');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const hits: LandmarkHit[] = [];
   const triggered = [-100, -100, -100, -100];
-  let active = false, progress = 0, current = -1, time = 0, frame = 0, previous = 0;
-  let cx = 456, cy = 285, zoom = 1, scale = 1, ox = 0, oy = 0;
+  let active = false, progress = 0, pan = 0, time = 0, frame = 0, previous = 0;
+  let scale = 1, ox = 0, oy = 0;
   const fraction = (a: number) => a - Math.floor(a);
-  function draw(dt: number) {
+  function draw() {
     if (!ctx) return;
     const c = ctx, width = canvas.clientWidth, height = canvas.clientHeight;
     if (!width || !height) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const px = Math.round(width * dpr), py = Math.round(height * dpr);
     if (canvas.width !== px || canvas.height !== py) { canvas.width = px; canvas.height = py; }
-    const center = centers[current] ?? [456, 285];
-    const ease = reduced.matches ? 1 : 1 - Math.exp(-4 * dt);
-    cx += (center[0] - cx) * ease; cy += (center[1] - cy) * ease;
-    zoom += ((current < 0 ? 1 : 1.75) - zoom) * ease;
-    scale = Math.min(width / 720, height / 390) * zoom * (1 + .07 * progress);
-    ox = width * (width > height ? .415 : .52) - cx * scale;
-    oy = height * (width > height ? .52 : .41) - cy * scale;
+    scale = Math.min(width / 720, height / 390) * (1 + .07 * progress);
+    ox = width * (width > height ? .415 : .52) - (456 - 190 * pan) * scale;
+    oy = height * (width > height ? .52 : .41) - 285 * scale;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     const sea = c.createLinearGradient(0, 0, 0, height);
     sea.addColorStop(0, '#174f67'); sea.addColorStop(.4, '#0b374e'); sea.addColorStop(1, '#03192f');
@@ -116,7 +110,7 @@ export function createWaterfrontFallback(canvas: HTMLCanvasElement, report: (mes
     if (!previous || now - previous >= 32) {
       const dt = previous ? Math.min(.08, (now - previous) / 1000) : 0;
       if (!reduced.matches) time += dt;
-      draw(dt); previous = now;
+      draw(); previous = now;
     }
     if (!reduced.matches) frame = requestAnimationFrame(tick);
   }
@@ -124,11 +118,7 @@ export function createWaterfrontFallback(canvas: HTMLCanvasElement, report: (mes
     cancelAnimationFrame(frame); previous = 0;
     if (active && !document.hidden) frame = requestAnimationFrame(tick);
   }
-  function visit(index: number) {
-    current = Number.isInteger(index) && index >= 0 && index < stops.length ? index : -1;
-    refresh();
-  }
-  function activate(stop = Math.max(current, 0)) {
+  function activate(stop = Math.round(pan * 3)) {
     if (!active) return;
     triggered[stop] = time;
     // Reduced-motion visitors see a still from the action.
@@ -153,9 +143,9 @@ export function createWaterfrontFallback(canvas: HTMLCanvasElement, report: (mes
   const observer = new ResizeObserver(refresh);
   observer.observe(canvas);
   return {
-    stops, visit, activate: () => activate(),
-    setState(visible: boolean, depth: number) {
-      if (visible === active && depth === progress) return;
+    setState(visible: boolean, depth: number, story: number) {
+      if (visible === active && depth === progress && story === pan) return;
+      pan = story;
       const changed = active !== visible;
       active = visible; progress = Math.max(0, Math.min(1, Number.isFinite(depth) ? depth : 0));
       if (changed || reduced.matches) refresh();
