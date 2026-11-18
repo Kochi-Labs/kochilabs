@@ -20,37 +20,41 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
       <svg viewBox="0 0 64 64" width="25" height="25" aria-hidden="true"><path d="M32 6v52M6 32h52M14 14l36 36M14 50l36-36" /></svg>
       Kochi Labs
     </a>
-    <button class="menu-toggle icon-button" type="button" aria-expanded="false" aria-controls="primary-links" aria-label="Menu">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
-    </button>
-    <ul id="primary-links">
-      {groups.map((group, index) => (
-        <li>
-          <button class="section-trigger" type="button" aria-expanded="false" aria-controls={`section-${index}`}>
-            {group.title}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
-          </button>
-          <ul id={`section-${index}`} class="dropdown" hidden>
-            {group.links.map(link => (
-              <li><a href={link.href}><strong>{link.title}</strong><small>{link.description}</small></a></li>
-            ))}
-          </ul>
-        </li>
-      ))}
-    </ul>
-    <button class="search-toggle icon-button" type="button" aria-label="Search" aria-expanded="false" aria-controls="nav-search" aria-keyshortcuts="Control+K Meta+K">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg>
-    </button>
-    <section id="nav-search" role="search" aria-label="Search Kochi Labs" hidden>
-      <input type="search" aria-label="Search Kochi Labs" placeholder="Search Kochi Labs…" autocomplete="off" />
-      <ul class="results">
-        {results.map(result => (
-          <li data-terms={`${result.name} ${result.meta} ${result.description}`.toLowerCase()}>
-            <a href={result.href}><strong>{result.name}</strong><small>{result.meta}</small></a>
+    <div class="controls">
+      <button class="menu-toggle icon-button" type="button" aria-expanded="false" aria-controls="primary-links" aria-label="Menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
+      </button>
+      <ul id="primary-links">
+        {groups.map((group, index) => (
+          <li>
+            <button class="section-trigger" type="button" aria-expanded="false" aria-controls={`section-${index}`}>
+              {group.title}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
+            </button>
+            <div id={`section-${index}`} class="dropdown" inert aria-hidden="true">
+              <div class="clip"><ul class="entries">
+              {group.links.map(link => (
+                <li><a href={link.href}><strong>{link.title}</strong><small>{link.description}</small></a></li>
+              ))}
+              </ul></div>
+            </div>
           </li>
         ))}
       </ul>
-      <p class="empty" role="status" hidden>No matches found.</p>
-    </section>
+      <button class="search-toggle icon-button" type="button" aria-label="Search" aria-expanded="false" aria-controls="nav-search" aria-keyshortcuts="Control+K Meta+K">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg>
+      </button>
+      <section id="nav-search" role="search" aria-label="Search Kochi Labs" hidden>
+        <input type="search" aria-label="Search Kochi Labs" placeholder="Search Kochi Labs…" autocomplete="off" />
+        <ul class="results">
+          {results.map(result => (
+            <li data-terms={`${result.name} ${result.meta} ${result.description}`.toLowerCase()}>
+              <a href={result.href}><strong>{result.name}</strong><small>{result.meta}</small></a>
+            </li>
+          ))}
+        </ul>
+        <p class="empty" role="status" hidden>No matches found.</p>
+      </section>
+    </div>
   </nav>
 </header>
 
@@ -62,12 +66,19 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   const sections = Array.from(header.querySelectorAll<HTMLButtonElement>('.section-trigger'));
   const results = Array.from(header.querySelectorAll<HTMLElement>('[data-terms]'));
   const empty = header.querySelector<HTMLElement>('.empty')!;
-  const compact = matchMedia('(max-width: 1220px)');
+  const compact = matchMedia('(max-width: 1000px)');
   const isOpen = (button: HTMLButtonElement) => button.getAttribute('aria-expanded') === 'true';
 
   function setOpen(button: HTMLButtonElement, open: boolean) {
     button.setAttribute('aria-expanded', String(open));
-    if (button !== menu) document.getElementById(button.getAttribute('aria-controls')!)!.hidden = !open;
+    if (button === menu) return;
+    const panel = document.getElementById(button.getAttribute('aria-controls')!)!;
+    if (button === search) {
+      panel.hidden = !open;
+    } else {
+      panel.inert = !open;
+      panel.setAttribute('aria-hidden', String(!open));
+    }
   }
   function closeAll() {
     for (const button of [menu, search, ...sections]) setOpen(button, false);
@@ -134,15 +145,21 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
     position: fixed;
     z-index: 4;
     top: max(16px, env(safe-area-inset-top));
-    left: 33%;
+    left: max(18px, env(safe-area-inset-left));
     right: max(7%, 68px);
+    --glass: rgb(239 248 247 / 24%);
     color: #142e29;
     font: 550 14px/1.35 system-ui, sans-serif;
     text-shadow: 0 1px 2px #f3faffbd;
     pointer-events: none;
   }
-  :global(body[data-time="night"]) .site-header { color: #fff5db; text-shadow: 0 1px 3px #081728; }
-  nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 1020px; margin: auto; }
+  :global(body[data-time="night"]) .site-header { --glass: rgb(20 38 54 / 24%); color: #fff5db; text-shadow: 0 1px 3px #081728; }
+  nav { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .controls { position: relative; display: flex; align-items: center; padding: 0 4px; border-radius: 16px; }
+  .controls, .brand, .dropdown .entries, #nav-search {
+    background-color: var(--glass);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px); }
   ul { margin: 0; padding: 0; list-style: none; }
   button, input, a { font: inherit; color: inherit; text-shadow: inherit; background: transparent; }
   button, input { padding: 0; border: 0; border-radius: 0; }
@@ -150,24 +167,34 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   a, button, input, .results { pointer-events: auto; }
   button { cursor: pointer; }
   svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-  .brand { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; font-size: 20px; font-weight: 720; letter-spacing: -.055em; white-space: nowrap; }
+  .brand { display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 14px; min-height: 38px; font-size: 19px; font-weight: 720; letter-spacing: -.055em; white-space: nowrap; }
   .brand svg { stroke-width: 6; }
-  #primary-links { display: flex; justify-content: space-between; flex: 1; gap: 4px; }
-  .section-trigger, .icon-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 4px; }
-  .section-trigger { white-space: nowrap; }
+  #primary-links { display: flex; align-items: center; gap: 0; }
+  #primary-links > li { position: relative; }
+  .section-trigger, .icon-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 4px; }
+  .section-trigger { white-space: nowrap; padding-inline: 7px; }
+  .section-trigger svg { transition: transform 200ms ease-out; }
   .section-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
   .section-trigger:hover, .section-trigger[aria-expanded="true"], a:hover strong { text-decoration: underline; text-underline-offset: 4px; }
-  .icon-button { width: 40px; }
+  .icon-button { width: 34px; }
   .icon-button svg { width: 19px; }
   .menu-toggle { display: none; }
-  .dropdown, #nav-search { position: absolute; top: 100%; padding-top: 8px; }
-  .dropdown { left: 0; right: 0; display: flex; justify-content: center; gap: 32px; }
-  .dropdown li { max-width: 200px; }
-  .dropdown a { display: block; padding: 5px 0; }
+  .dropdown, #nav-search { position: absolute; top: calc(100% + 4px); border-radius: 14px; }
+  .dropdown {
+    left: 0; width: 210px; transform: translateY(0);
+    transition: opacity 200ms ease-out, transform 200ms ease-out, visibility 200ms;
+  }
+  #primary-links > li:nth-last-child(-n+2) .dropdown { left: auto; right: 0; }
+  .dropdown[aria-hidden="true"] { opacity: 0; visibility: hidden; transform: translateY(8px); }
+  .entries { display: grid; gap: 4px; border-radius: 12px; padding: 5px 7px; }
+  .dropdown a { display: block; padding: 4px 0; }
   strong, small { display: block; }
   strong { font-size: 14px; font-weight: 690; }
   small { font-size: 12px; margin-top: 3px; }
-  #nav-search { left: 50%; transform: translateX(-50%); width: min(330px, 100%); }
+  #nav-search { right: 0; width: min(290px, 80vw); padding: 6px 12px 10px; box-sizing: border-box; }
+  #nav-search, #nav-search[hidden] { transition: opacity 200ms ease-out, translate 200ms ease-out, display 200ms allow-discrete; }
+  #nav-search[hidden] { opacity: 0; translate: 0 -6px; }
+  @starting-style { #nav-search:not([hidden]) { opacity: 0; translate: 0 -6px; } }
   input { width: 100%; border-bottom: 1px solid currentColor; min-height: 38px; }
   input::placeholder { color: inherit; opacity: .85; }
   .results { max-height: min(18svh, 150px); overflow: auto; overscroll-behavior: contain; }
@@ -176,24 +203,34 @@ const results = groups.flatMap(group => group.links.map(link => ({ name: link.ti
   :is(a, button, input):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
   [hidden] { display: none !important; }
 
-  @media (max-width: 1220px) {
-    .site-header { left: 34%; right: max(14%, 63px); }
-    nav { max-width: 580px; gap: 2px; }
-    .brand { margin-right: auto; }
+  @media (max-width: 1000px) {
+    .site-header { right: max(64px, env(safe-area-inset-right)); }
     .menu-toggle { display: inline-flex; order: 1; }
-    #primary-links { display: none; position: absolute; left: 0; right: 0; top: 100%; max-height: min(38svh, 270px); overflow: auto; overscroll-behavior: contain; pointer-events: auto; }
-    .menu-toggle[aria-expanded="true"] + #primary-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 0 18px; }
+    #primary-links {
+      position: absolute; right: 0; top: calc(100% + 4px);
+      width: min(260px, calc(100vw - 84px)); padding: 7px 10px; box-sizing: border-box;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start;
+      background: var(--glass); border-radius: 14px; backdrop-filter: blur(3px);
+      max-height: 44svh; overflow: auto; overscroll-behavior: contain; pointer-events: auto;
+      transition: opacity 300ms ease-out, transform 300ms ease-out, visibility 300ms;
+    }
+    .menu-toggle[aria-expanded="false"] + #primary-links { visibility: hidden; opacity: 0; transform: translateY(-8px); pointer-events: none; }
     .section-trigger { justify-content: flex-start; min-height: 38px; }
-    .dropdown { position: static; display: block; padding: 0 0 6px; }
+    .dropdown, .dropdown[aria-hidden="true"] {
+      position: static; width: auto; transform: none; display: grid; grid-template-rows: 1fr;
+      transition: grid-template-rows 300ms ease-out, opacity 300ms ease-out, visibility 300ms;
+    }
+    .dropdown[aria-hidden="true"] { grid-template-rows: 0fr; }
+    .clip { overflow: hidden; min-height: 0; }
+    .dropdown .entries { display: block; background: transparent; backdrop-filter: none; padding: 0 7px 5px; }
     .dropdown small { display: none; }
-    #nav-search { left: 0; transform: none; }
-  }
-  @media (max-aspect-ratio: 1/1) {
-    .site-header { left: max(13%, 14px); right: max(13%, 62px); }
   }
   @media (max-width: 480px) {
-    .site-header { top: 14px; }
+    .site-header { top: 14px; left: 12px; }
     .brand { font-size: 18px; }
-    .icon-button { width: 36px; }
+    .icon-button { min-height: 42px; width: 36px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .site-header *, #primary-links, #nav-search, #nav-search[hidden], .dropdown[aria-hidden] { transition: none; }
   }
 </style>
