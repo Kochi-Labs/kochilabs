@@ -308,6 +308,7 @@
         jump();
       });
       document.addEventListener('keydown', (event) => {
+        if (root.closest('[inert]')) return;
         if (event.altKey || event.ctrlKey || event.metaKey || event.defaultPrevented) return;
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest('input, textarea, select, [contenteditable], button, a')) return;
@@ -324,6 +325,7 @@
         if (event.relatedTarget !== pauseButton) pause();
       });
       document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+      window.addEventListener('kochi:submerge', pause);
       const observer = new ResizeObserver(resize);
       observer.observe(canvas);
       resize();

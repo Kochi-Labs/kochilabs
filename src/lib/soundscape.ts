@@ -33,13 +33,16 @@ const EFFECT_FILES: Record<SoundEffect, string> = {
 export function createSoundscape(onState?: (state: SoundState) => void) {
   let context: AudioContext | undefined;
   let master: GainNode, music: GainNode, effects: GainNode;
+  let depthFilter: BiquadFilterNode | undefined;
+  let waterDepth = 0;
   let state: SoundState = 'waiting', muted = false, destroyed = false, night = false;
   let rain = 0, fire = 0, beat = 0, phrase = 0, lastTake = 0, nextNote = 0;
-  let activation: Promise<void> | undefined, loading: Promise<void> | undefined;
+  let activation: Promise<void> | undefined;
   let activationVersion = 0, autoAttempted = false;
   let timer: ReturnType<typeof setInterval> | undefined;
   let suspendTimer: ReturnType<typeof setTimeout> | undefined;
   const buffers = new Map<string, AudioBuffer>();
+  const loads = new Map<string, Promise<void>>();
   const nodes = new Set<AudioNode>();
   const voices = new Set<{ source: AudioBufferSourceNode; finish: () => void }>();
   const beds = new Map<Bed, { gain: GainNode; next: number }>();
@@ -51,6 +54,25 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
   const abort = new AbortController();
   const report = (value: SoundState) => { state = value; onState?.(value); };
   const keep = <T extends AudioNode>(node: T): T => { nodes.add(node); return node; };
+  function loadRecording(file: string) {
+    const existing = loads.get(file);
+    if (existing) return existing;
+    const audio = context!;
+    const request = (async () => {
+      try {
+        const response = await fetch(`/audio/${file}.mp3`, { signal: abort.signal });
+        if (!response.ok) throw new Error(`Audio asset ${response.status}`);
+        const buffer = await audio.decodeAudioData(await response.arrayBuffer());
+        if (!destroyed) buffers.set(file, buffer);
+      } catch (error) { if (!destroyed) console.warn(`Could not load recording: ${file}`, error); }
+    })();
+    loads.set(file, request);
+    return request;
+  }
+  function depthCutoff() {
+    const surfaceHz = Math.min(22000, context!.sampleRate / 2);
+    return surfaceHz * Math.pow(550 / surfaceHz, waterDepth);
+  }
   function spatialPanner(x: number, y: number, z: number) {
     const panner = context!.createPanner();
     panner.panningModel = 'HRTF';
@@ -110,7 +132,10 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       rain: rain * .27, fire: fire * .2,
     };
     // About six seconds to settle: no abrupt wildlife or weather switch.
-    beds.forEach((bed, name) => bed.gain.gain.setTargetAtTime(levels[name], context!.currentTime, 2));
+    beds.forEach((bed, name) => {
+      if (state === 'playing' && levels[name] > 0) void loadRecording(BED_FILES[name]);
+      bed.gain.gain.setTargetAtTime(levels[name], context!.currentTime, 2);
+    });
   }
   function moveSounds(force = false) {
     if (!context || state !== 'playing') return;
@@ -170,7 +195,10 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     movers.forEach((mover, name) => {
       const file = name === 'metro' ? 'metro-roll' : 'ambience-water';
       const buffer = buffers.get(file);
-      if (!buffer) return;
+      if (!buffer) {
+        if (name === 'metro' && motion.metroMoving) void loadRecording(file);
+        return;
+      }
       const offset = name === 'boat' ? Math.min(8, buffer.duration / 4) : 0;
       const duration = buffer.duration - offset;
       if (mover.next < now) mover.next = now + .04;
@@ -180,9 +208,14 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       }
     });
     if (nextNote < now - .2) nextNote = now + .35;
-    if (nextNote > now + .25) return;
     const pattern = PHRASES[phrase % PHRASES.length]!;
     const note = pattern[beat % pattern.length];
+    // Fetch the next actual take during the preceding beat's decay.
+    if (note) {
+      void loadRecording(`handpan/${note}-${lastTake === 1 ? 2 : 1}`);
+      if (beat === 0 && phrase % 2 === 0) void loadRecording(`handpan/A3-${lastTake === 1 ? 1 : 2}`);
+    }
+    if (nextNote > now + .25) return;
     if (note) {
       handpan(note, nextNote, (beat % 4 === 0 ? .76 : .57) + Math.random() * .09, Math.sin(beat * .7) * .13);
       if (beat === 0 && phrase % 2 === 0) handpan('A3', nextNote + .11, .24, -.15);
@@ -201,7 +234,11 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     const limiter = keep(context.createDynamicsCompressor());
     limiter.threshold.value = -15; limiter.knee.value = 18; limiter.ratio.value = 3;
     limiter.attack.value = .015; limiter.release.value = .35;
-    master.connect(limiter); limiter.connect(context.destination);
+    depthFilter = keep(context.createBiquadFilter());
+    depthFilter.type = 'lowpass';
+    depthFilter.Q.value = -3;
+    depthFilter.frequency.value = depthCutoff();
+    master.connect(depthFilter); depthFilter.connect(limiter); limiter.connect(context.destination);
     music = keep(context.createGain()); music.gain.value = .40;
     const warmth = keep(context.createBiquadFilter()); warmth.type = 'lowpass'; warmth.frequency.value = 3400; warmth.Q.value = .35;
     music.connect(warmth); warmth.connect(master);
@@ -228,16 +265,6 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       movers.set(name, { gain, panner, next: 0 });
     }
     mixBeds();
-    const notes = ['A3', 'D4', 'F4', 'G4', 'A4', 'C5'];
-    const files = new Set(['metro-roll', ...Object.values(BED_FILES), ...Object.values(EFFECT_FILES), ...notes.flatMap(note => [1, 2].map(take => `handpan/${note}-${take}`))]);
-    loading = Promise.all([...files].map(async file => {
-      try {
-        const response = await fetch(`/audio/${file}.mp3`, { signal: abort.signal });
-        if (!response.ok) throw new Error(`Audio asset ${response.status}`);
-        const buffer = await context!.decodeAudioData(await response.arrayBuffer());
-        if (!destroyed) buffers.set(file, buffer);
-      } catch (error) { if (!destroyed) console.warn(`Could not load recording: ${file}`, error); }
-    })).then(() => {});
   }
   function stopScheduler() { if (timer !== undefined) clearInterval(timer); timer = undefined; }
   async function start(fromGesture = false) {
@@ -256,7 +283,8 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
           return;
         }
         if (version !== activationVersion) return;
-        await loading;
+        if (context!.state !== 'running') { report('waiting'); return; }
+        await Promise.all(['ambience-water', 'handpan/D4-1', 'handpan/A3-2'].map(loadRecording));
         if (destroyed || muted || document.hidden || version !== activationVersion) return;
         if (!buffers.size) { report('unavailable'); return; }
         if (context!.state !== 'running') { report('waiting'); return; }
@@ -296,13 +324,19 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       if (state === 'playing') { muted = true; hush('muted'); }
       else { muted = false; await start(true); }
     },
-    play(type: SoundEffect, pan = 0, intensity = 1) {
+    async play(type: SoundEffect, pan = 0, intensity = 1) {
       if (destroyed || document.hidden || muted || type === 'gameStart') return;
       if (state !== 'playing') {
         if (activation && pending.length < 4) pending.push({ type, pan, intensity, at: performance.now() });
         return;
       }
       if (!context) return;
+      const file = EFFECT_FILES[type];
+      if (!buffers.has(file)) {
+        const requested = performance.now(), version = activationVersion;
+        await loadRecording(file);
+        if (destroyed || document.hidden || state !== 'playing' || version !== activationVersion || performance.now() - requested > 1200) return;
+      }
       const now = context.currentTime;
       const cooldown = type === 'birds' ? 8 : type === 'jump' || type === 'land' ? .08 : type === 'water' ? .18 : .3;
       if (now - (lastEffect.get(type) ?? -10) < cooldown) return;
@@ -320,7 +354,7 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
       if (type === 'water') strength *= .65;
       const musical = type === 'celestial';
       if (musical) strength *= .65;
-      sample(EFFECT_FILES[type], now, strength, pan, musical ? music : effects, options);
+      sample(file, now, strength, pan, musical ? music : effects, options);
     },
     setMotion(value: SceneSoundMotion) {
       if (destroyed) return;
@@ -331,12 +365,18 @@ export function createSoundscape(onState?: (state: SoundState) => void) {
     setRain(value: number) { rain = clamp(value); mixBeds(); },
     setFire(value: number) { fire = clamp(value); mixBeds(); },
     setNight(value: boolean) { night = value; mixBeds(); },
+    setDepth(progress: number) {
+      const depth = clamp(progress);
+      if (destroyed || depth === waterDepth) return;
+      waterDepth = depth;
+      if (context && depthFilter) depthFilter.frequency.setTargetAtTime(depthCutoff(), context.currentTime, .14);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true; ++activationVersion; activation = undefined; abort.abort(); stopScheduler();
       if (suspendTimer !== undefined) clearTimeout(suspendTimer);
       document.removeEventListener('visibilitychange', visibility);
-      release(); nodes.forEach(node => node.disconnect()); nodes.clear(); buffers.clear(); pending.length = 0;
+      release(); nodes.forEach(node => node.disconnect()); nodes.clear(); buffers.clear(); loads.clear(); pending.length = 0;
       void context?.close().catch(() => {});
     },
   };

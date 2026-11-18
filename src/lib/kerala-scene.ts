@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createLakeLens } from './lake-dive';
 import type { SceneSoundMotion } from './soundscape';
 import { createRiverSurface, riverContains } from './river-surface';
 import { createMetroPassenger } from './metro-passenger';
@@ -20,6 +21,7 @@ export type KeralaSceneController = {
   nudgeBoat(): void;
   releaseBirds(): void;
   setScroll(progress: number): void;
+  setSubmerged(submerged: boolean): void;
   setNight(enabled: boolean): void;
   houseLabels: readonly string[];
   toggleHouse(index: number): boolean;
@@ -58,7 +60,7 @@ void main() {
 
 /** A transparent WebGL layer; the caller's painted background remains the fallback. */
 export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptions): KeralaSceneController {
-  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setNight() {}, houseLabels: [], toggleHouse() { return false; }, shakePalm() {}, openBottle() {} };
+  const noop: KeralaSceneController = { destroy() {}, splashAt() {}, nudgeBoat() {}, releaseBirds() {}, setScroll() {}, setSubmerged() {}, setNight() {}, houseLabels: [], toggleHouse() { return false; }, shakePalm() {}, openBottle() {} };
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
@@ -79,6 +81,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let reducedMotion = media.matches;
   let destroyed = false;
   let ready = false;
+  let submerged = false;
   let failed = false;
   let time = 0;
   let cloudTime = 0;
@@ -88,6 +91,8 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   let accumulator = 0;
   let animationFrame = 0;
   let scrollTarget = 0;
+  let dive = 0;
+  let lakeLens: ReturnType<typeof createLakeLens> | undefined;
   let scroll = 0;
   let viewWidth = 1600;
   let shortViewportOffset = 0;
@@ -353,7 +358,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function onPointerDown(event: PointerEvent) {
-    if (event.button !== 0 || !ready || pointer) return;
+    if (event.button !== 0 || !ready || submerged || pointer) return;
     const { target, houseIndex, lastCarriage } = pick(event.clientX, event.clientY);
     const point = worldPoint(event.clientX, event.clientY);
     pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, worldX: point?.x ?? 0, boatX, dragging: false, target, houseIndex, lastCarriage };
@@ -366,7 +371,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (!ready) return;
+    if (!ready || submerged) return;
     const hoverPoint = worldPoint(event.clientX, event.clientY);
     if (hoverPoint && pointer?.target !== 'boat') {
       const uv = backdropPoint(hoverPoint);
@@ -508,7 +513,18 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
   }
 
   function render() {
-    camera.position.y = -scroll * 42 - shortViewportOffset;
+    // Aim through the real wave mesh just in front of the moving hull. At the
+    // end of the approach, water fills the whole camera frustum at every aspect.
+    const approach = reducedMotion ? 0 : THREE.MathUtils.smoothstep(dive, 0, .5);
+    const shoreViewY = -scroll * 42 - shortViewportOffset;
+    const waterX = THREE.MathUtils.clamp(boatX + Math.min(125, viewWidth * .23), -660, 660);
+    camera.position.x = waterX * approach;
+    camera.position.y = THREE.MathUtils.lerp(shoreViewY, boatY - 124, approach);
+    const zoom = Math.exp(approach * 1.78);
+    if (camera.zoom !== zoom) {
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+    }
     camera.updateMatrixWorld();
     background.position.y = -scroll * 29;
     village.group.position.y = background.position.y;
@@ -564,11 +580,16 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       (bird.left.material as THREE.MeshBasicMaterial).opacity = 1 - THREE.MathUtils.smoothstep(age, 5, 7);
     }
     boatWater.update({ time, night, reducedMotion, surfaceOffset: background.position.y, waves, speed: boatVelocityX, waterY: -220 + scroll * 4 + boatCruiseDepth });
-    renderer.render(scene, camera);
+    if (dive > .30 && !reducedMotion) {
+      lakeLens ??= createLakeLens(renderer);
+      lakeLens.render(scene, camera, THREE.MathUtils.smoothstep(dive, .30, .54), time, night);
+    } else {
+      renderer.render(scene, camera);
+    }
   }
 
   function animate(timestamp: number) {
-    if (destroyed || failed || document.hidden) return;
+    if (destroyed || failed || document.hidden || submerged) return;
     const dt = previousTime ? Math.min((timestamp - previousTime) / 1000, .04) : 0;
     previousTime = timestamp;
     if (ready) {
@@ -583,7 +604,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     cancelAnimationFrame(animationFrame);
     onPointerCancel();
     previousTime = 0;
-    if (!document.hidden && !destroyed && !failed) animationFrame = requestAnimationFrame(animate);
+    if (!document.hidden && !destroyed && !failed && !submerged) animationFrame = requestAnimationFrame(animate);
   }
   function onMotionChange() {
     reducedMotion = media.matches;
@@ -616,7 +637,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     backgroundMaterial.uniforms.uBackdrop!.value = loaded;
     river.setTexture(loaded);
     ready = true;
-    render();
+    if (!submerged && !document.hidden) render();
     options.onReady?.(true);
   }, undefined, () => {
     failed = true;
@@ -643,7 +664,16 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
     },
     nudgeBoat,
     releaseBirds,
-    setScroll(progress) { scrollTarget = Number.isFinite(progress) ? THREE.MathUtils.clamp(progress, 0, 1) : 0; },
+    setScroll(progress) {
+      dive = Number.isFinite(progress) ? THREE.MathUtils.clamp(progress, 0, 1) : 0;
+      scrollTarget = THREE.MathUtils.smoothstep(dive, 0, .45);
+    },
+    setSubmerged(value) {
+      if (submerged === value || destroyed) return;
+      submerged = value;
+      onVisibility();
+      if (submerged) options.onSoundMotion?.({ metroPan: 0, metroMoving: false, boatPan: soundPan(boatX), boatSpeed: 0, boatDragging: false });
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -670,6 +700,7 @@ export function createKeralaScene(canvas: HTMLCanvasElement, options: SceneOptio
       luxuryBoat.destroy();
       disposeObject(scene);
       ownedTextures.forEach((owned) => owned.dispose());
+      lakeLens?.destroy();
       renderer.dispose();
     },
   };

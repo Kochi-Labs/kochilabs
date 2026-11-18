@@ -15,7 +15,7 @@ export function installBottleNote(dialog: HTMLDialogElement, onSound?: (type: 'p
   const message = dialog.querySelector<HTMLElement>('#bottle-message')!;
   const leaf = createPalmLeafScroll(dialog.querySelector<HTMLCanvasElement>('.leaf-scroll-canvas')!);
   if (leaf) dialog.dataset.scroll = 'ready';
-  let language: Language['lang'] = 'en';
+  let language: keyof typeof messages = 'en';
   let closing = false;
   let destroyed = false;
   function open() {
@@ -38,7 +38,9 @@ export function installBottleNote(dialog: HTMLDialogElement, onSound?: (type: 'p
   dialog.addEventListener('submit', requestClose);
   return {
     open, close,
-    setLanguage(next: Language) { language = next.lang; },
+    setLanguage(next: Language) {
+      language = Object.hasOwn(messages, next.lang) ? next.lang as keyof typeof messages : 'en';
+    },
     destroy() {
       destroyed = true;
       dialog.removeEventListener('cancel', requestClose);
